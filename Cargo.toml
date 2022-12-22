@@ -1,0 +1,13 @@
+[package]
+edition = "2021"
+name = "force-derive"
+version = "0.1.0"
+
+[dependencies]
+force-derive-impl = { path = "force-derive-impl" }
+
+[dev-dependencies]
+static_assertions = "1"
+
+[workspace]
+members = ["force-derive-impl"]
