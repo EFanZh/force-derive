@@ -47,9 +47,9 @@ where
 static_assertions::assert_impl_all!(UnitDebug1: Debug);
 static_assertions::assert_impl_all!(UnitDebug2: Debug);
 static_assertions::assert_impl_all!(TupleDebug1<NotDebug>: Debug);
-static_assertions::assert_impl_all!(TupleDebug2<dyn Send>: Debug);
+static_assertions::assert_impl_all!(TupleDebug2<NotDebug>: Debug);
 static_assertions::assert_impl_all!(EnumDebug1<NotDebug>: Debug);
-static_assertions::assert_impl_all!(EnumDebug2<dyn Send>: Debug);
+static_assertions::assert_impl_all!(EnumDebug2<NotDebug>: Debug);
 
 #[test]
 fn test_debug() {

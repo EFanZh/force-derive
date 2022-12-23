@@ -50,9 +50,9 @@ where
 static_assertions::assert_impl_all!(UnitPartialEq1: PartialEq);
 static_assertions::assert_impl_all!(UnitPartialEq2: PartialEq);
 static_assertions::assert_impl_all!(TuplePartialEq1<NotPartialEq>: PartialEq);
-static_assertions::assert_impl_all!(TuplePartialEq2<dyn Send>: PartialEq);
+static_assertions::assert_impl_all!(TuplePartialEq2<NotPartialEq>: PartialEq);
 static_assertions::assert_impl_all!(EnumPartialEq1<NotPartialEq>: PartialEq);
-static_assertions::assert_impl_all!(EnumPartialEq2<dyn Send>: PartialEq);
+static_assertions::assert_impl_all!(EnumPartialEq2<NotPartialEq>: PartialEq);
 
 fn partial_eq<T>(lhs: &T, rhs: &T) -> (bool, bool)
 where

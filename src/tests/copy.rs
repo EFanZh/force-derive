@@ -48,6 +48,6 @@ where
 static_assertions::assert_impl_all!(UnitCopy1: Copy);
 static_assertions::assert_impl_all!(UnitCopy2: Copy);
 static_assertions::assert_impl_all!(TupleCopy1<NotCopy>: Copy);
-static_assertions::assert_impl_all!(TupleCopy2<dyn Send>: Copy);
+static_assertions::assert_impl_all!(TupleCopy2<NotCopy>: Copy);
 static_assertions::assert_impl_all!(EnumCopy1<NotCopy>: Copy);
-static_assertions::assert_impl_all!(EnumCopy2<dyn Send>: Copy);
+static_assertions::assert_impl_all!(EnumCopy2<NotCopy>: Copy);

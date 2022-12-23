@@ -46,9 +46,9 @@ where
 static_assertions::assert_impl_all!(UnitClone1: Clone);
 static_assertions::assert_impl_all!(UnitClone2: Clone);
 static_assertions::assert_impl_all!(TupleClone1<NotClone>: Clone);
-static_assertions::assert_impl_all!(TupleClone2<dyn Send>: Clone);
+static_assertions::assert_impl_all!(TupleClone2<NotClone>: Clone);
 static_assertions::assert_impl_all!(EnumClone1<NotClone>: Clone);
-static_assertions::assert_impl_all!(EnumClone2<dyn Send>: Clone);
+static_assertions::assert_impl_all!(EnumClone2<NotClone>: Clone);
 
 #[test]
 fn test_clone() {
