@@ -1,5 +1,5 @@
-use proc_macro2::{Literal, TokenStream};
-use syn::{Data, DeriveInput, Fields, Generics, Ident};
+use proc_macro2::TokenStream;
+use syn::{Data, DeriveInput, Fields, Generics, Ident, Index};
 
 fn derive_with(ty: Ident, generics: Generics, body: TokenStream) -> TokenStream {
     let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
@@ -16,10 +16,11 @@ fn derive_with(ty: Ident, generics: Generics, body: TokenStream) -> TokenStream 
     }
 }
 
-pub fn derive_debug(input: DeriveInput) -> TokenStream {
+pub fn derive_debug(input: DeriveInput) -> syn::Result<TokenStream> {
+    let span = input.ident.span();
     let ty_string = input.ident.to_string();
 
-    derive_with(
+    Ok(derive_with(
         input.ident,
         input.generics,
         match input.data {
@@ -39,7 +40,7 @@ pub fn derive_debug(input: DeriveInput) -> TokenStream {
                     }
                 }
                 Fields::Unnamed(fields) => {
-                    let fields = (0..fields.unnamed.len()).map(Literal::usize_unsuffixed);
+                    let fields = (0..fields.unnamed.len()).map(Index::from);
 
                     quote::quote! {
                         f.debug_tuple(#ty_string)
@@ -98,9 +99,11 @@ pub fn derive_debug(input: DeriveInput) -> TokenStream {
                     }
                 }
             }
-            Data::Union(_) => panic!("Cannot derive `Debug` on a `union`."),
+            Data::Union(_) => {
+                return Err(syn::Error::new(span, "Cannot derive `Debug` on a `union`."))
+            }
         },
-    )
+    ))
 }
 
 #[cfg(test)]
@@ -220,8 +223,10 @@ mod tests {
 
         for (input, expected) in test_cases {
             assert_eq!(
-                super::derive_debug(utilities::parse_derive_input(input).unwrap()).to_string(),
-                expected.to_string()
+                super::derive_debug(utilities::parse_derive_input(input).unwrap())
+                    .unwrap()
+                    .to_string(),
+                expected.to_string(),
             );
         }
     }

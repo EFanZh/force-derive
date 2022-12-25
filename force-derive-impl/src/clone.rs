@@ -1,5 +1,5 @@
-use proc_macro2::{Literal, TokenStream};
-use syn::{Data, DeriveInput, Fields, Generics, Ident};
+use proc_macro2::TokenStream;
+use syn::{Data, DeriveInput, Fields, Generics, Ident, Index};
 
 fn derive_with(ty: Ident, generics: Generics, body: TokenStream) -> TokenStream {
     let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
@@ -30,7 +30,7 @@ pub fn derive_clone(input: DeriveInput) -> TokenStream {
                     quote::quote! { Self { #(#fields: #clone(&self.#fields),)* } }
                 }
                 Fields::Unnamed(fields) => {
-                    let fields = (0..fields.unnamed.len()).map(Literal::usize_unsuffixed);
+                    let fields = (0..fields.unnamed.len()).map(Index::from);
 
                     quote::quote! { Self(#(#clone(&self.#fields),)*) }
                 }

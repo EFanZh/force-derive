@@ -1,5 +1,5 @@
-use proc_macro2::{Literal, TokenStream};
-use syn::{Data, DeriveInput, Fields, Generics, Ident, Variant};
+use proc_macro2::{Span, TokenStream};
+use syn::{Data, DeriveInput, Fields, Generics, Ident, Index, Variant};
 
 fn unit_type() -> (TokenStream, TokenStream) {
     (quote::quote!(true), quote::quote!(false))
@@ -94,8 +94,8 @@ fn generate_variant(variant: &Variant) -> (TokenStream, TokenStream) {
     }
 }
 
-fn generate_function_bodies(data: Data) -> (TokenStream, TokenStream) {
-    match data {
+fn generate_function_bodies(span: Span, data: Data) -> syn::Result<(TokenStream, TokenStream)> {
+    Ok(match data {
         Data::Struct(data_struct) => match data_struct.fields {
             Fields::Named(fields) => {
                 if fields.named.is_empty() {
@@ -120,7 +120,7 @@ fn generate_function_bodies(data: Data) -> (TokenStream, TokenStream) {
                 if fields.unnamed.is_empty() {
                     unit_type()
                 } else {
-                    let eq_self_fields = (0..fields.unnamed.len()).map(Literal::usize_unsuffixed);
+                    let eq_self_fields = (0..fields.unnamed.len()).map(Index::from);
                     let eq_other_fields = eq_self_fields.clone();
                     let ne_self_fields = eq_self_fields.clone();
                     let ne_other_fields = eq_self_fields.clone();
@@ -177,8 +177,13 @@ fn generate_function_bodies(data: Data) -> (TokenStream, TokenStream) {
                 )
             }
         }
-        Data::Union(_) => panic!("Cannot derive `PartialEq` on a `union`."),
-    }
+        Data::Union(_) => {
+            return Err(syn::Error::new(
+                span,
+                "Cannot derive `PartialEq` on a `union`.",
+            ))
+        }
+    })
 }
 
 fn derive_with(
@@ -205,10 +210,9 @@ fn derive_with(
     }
 }
 
-pub fn derive_partial_eq(input: DeriveInput) -> TokenStream {
-    let (eq_body, ne_body) = generate_function_bodies(input.data);
-
-    derive_with(input.ident, input.generics, eq_body, ne_body)
+pub fn derive_partial_eq(input: DeriveInput) -> syn::Result<TokenStream> {
+    generate_function_bodies(input.ident.span(), input.data)
+        .map(|(eq_body, ne_body)| derive_with(input.ident, input.generics, eq_body, ne_body))
 }
 
 #[cfg(test)]
@@ -444,7 +448,9 @@ mod tests {
 
         for (input, expected) in test_cases {
             assert_eq!(
-                super::derive_partial_eq(utilities::parse_derive_input(input).unwrap()).to_string(),
+                super::derive_partial_eq(utilities::parse_derive_input(input).unwrap())
+                    .unwrap()
+                    .to_string(),
                 expected.to_string(),
             );
         }
