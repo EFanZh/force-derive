@@ -29,6 +29,14 @@ where
 // Enum.
 
 #[derive(force_derive_impl::PartialEq)]
+enum EnumPartialEqEmpty {}
+
+#[derive(force_derive_impl::PartialEq)]
+enum EnumPartialEqSingle<T> {
+    B(PhantomData<T>),
+}
+
+#[derive(force_derive_impl::PartialEq)]
 enum EnumPartialEq1<T> {
     A,
     B(PhantomData<T>),
@@ -51,6 +59,8 @@ static_assertions::assert_impl_all!(UnitPartialEq1: PartialEq);
 static_assertions::assert_impl_all!(UnitPartialEq2: PartialEq);
 static_assertions::assert_impl_all!(TuplePartialEq1<NotPartialEq>: PartialEq);
 static_assertions::assert_impl_all!(TuplePartialEq2<NotPartialEq>: PartialEq);
+static_assertions::assert_impl_all!(EnumPartialEqEmpty: PartialEq);
+static_assertions::assert_impl_all!(EnumPartialEqSingle<NotPartialEq>: PartialEq);
 static_assertions::assert_impl_all!(EnumPartialEq1<NotPartialEq>: PartialEq);
 static_assertions::assert_impl_all!(EnumPartialEq2<NotPartialEq>: PartialEq);
 
@@ -89,6 +99,13 @@ fn test_partial_eq_tuple() {
         ),
         (true, false),
     );
+}
+
+#[test]
+fn test_partial_eq_enum_single() {
+    let b = EnumPartialEqSingle::<NotPartialEq>::B(PhantomData);
+
+    assert_eq!(partial_eq(&b, &b), (true, false));
 }
 
 #[test]

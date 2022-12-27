@@ -53,49 +53,55 @@ pub fn derive_debug(input: DeriveInput) -> syn::Result<TokenStream> {
                 },
             },
             Data::Enum(data_enum) => {
-                let variants = data_enum.variants.into_iter().map(|variant| {
-                    let variant_name = variant.ident;
-                    let variant_name_string = variant_name.to_string();
+                let variants = data_enum.variants;
 
-                    match variant.fields {
-                        Fields::Named(fields) => {
-                            let pattern_fields = fields
-                                .named
-                                .iter()
-                                .map(|field| field.ident.as_ref().unwrap());
+                if variants.is_empty() {
+                    quote::quote! { match *self {} }
+                } else {
+                    let arms = variants.into_iter().map(|variant| {
+                        let variant_name = variant.ident;
+                        let variant_name_string = variant_name.to_string();
 
-                            let field_names = pattern_fields.clone().map(Ident::to_string);
+                        match variant.fields {
+                            Fields::Named(fields) => {
+                                let pattern_fields = fields
+                                    .named
+                                    .iter()
+                                    .map(|field| field.ident.as_ref().unwrap());
 
-                            let expression_fields = pattern_fields.clone();
+                                let field_names = pattern_fields.clone().map(Ident::to_string);
 
-                            quote::quote! {
-                                Self::#variant_name { #(#pattern_fields,)* } =>
-                                    f.debug_struct(#variant_name_string)
-                                    #(.field(#field_names, #expression_fields))*
-                                    .finish()
+                                let expression_fields = pattern_fields.clone();
+
+                                quote::quote! {
+                                    Self::#variant_name { #(#pattern_fields,)* } =>
+                                        f.debug_struct(#variant_name_string)
+                                        #(.field(#field_names, #expression_fields))*
+                                        .finish()
+                                }
                             }
-                        }
-                        Fields::Unnamed(fields) => {
-                            let fields = (0..fields.unnamed.len())
-                                .map(|i| quote::format_ident!("field_{}", i))
-                                .collect::<Vec<_>>();
+                            Fields::Unnamed(fields) => {
+                                let fields = (0..fields.unnamed.len())
+                                    .map(|i| quote::format_ident!("field_{}", i))
+                                    .collect::<Vec<_>>();
 
-                            quote::quote! {
-                                Self::#variant_name(#(#fields,)*) =>
-                                    f.debug_tuple(#variant_name_string)
-                                    #(.field(#fields))*
-                                    .finish()
+                                quote::quote! {
+                                    Self::#variant_name(#(#fields,)*) =>
+                                        f.debug_tuple(#variant_name_string)
+                                        #(.field(#fields))*
+                                        .finish()
+                                }
                             }
+                            Fields::Unit => quote::quote! {
+                                Self::#variant_name => f.write_str(#variant_name_string)
+                            },
                         }
-                        Fields::Unit => quote::quote! {
-                            Self::#variant_name => f.write_str(#variant_name_string)
-                        },
-                    }
-                });
+                    });
 
-                quote::quote! {
-                    match self {
-                        #(#variants,)*
+                    quote::quote! {
+                        match self {
+                            #(#arms,)*
+                        }
                     }
                 }
             }
@@ -190,6 +196,38 @@ mod tests {
                     impl ::core::fmt::Debug for Foo {
                         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                             f.write_str("Foo")
+                        }
+                    }
+                },
+            ),
+            // Empty enum type.
+            (
+                quote::quote! {
+                    enum Foo {}
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl ::core::fmt::Debug for Foo {
+                        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                            match *self {}
+                        }
+                    }
+                },
+            ),
+            // Single enum type.
+            (
+                quote::quote! {
+                    enum Foo {
+                        X,
+                    }
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl ::core::fmt::Debug for Foo {
+                        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                            match self {
+                                Self::X => f.write_str("X"),
+                            }
                         }
                     }
                 },

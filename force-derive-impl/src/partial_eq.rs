@@ -172,8 +172,8 @@ fn generate_function_bodies(span: Span, data: Data) -> syn::Result<(TokenStream,
                 }
             } else {
                 (
-                    quote::quote! { match (self, other) {} },
-                    quote::quote! { match (self, other) {} },
+                    quote::quote! { match *self {} },
+                    quote::quote! { match *self {} },
                 )
             }
         }

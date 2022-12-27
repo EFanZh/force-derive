@@ -37,41 +37,47 @@ pub fn derive_clone(input: DeriveInput) -> TokenStream {
                 Fields::Unit => quote::quote! { Self },
             },
             Data::Enum(data_enum) => {
-                let variants = data_enum.variants.into_iter().map(|variant| {
-                    let variant_name = variant.ident;
+                let variants = data_enum.variants;
 
-                    match variant.fields {
-                        Fields::Named(fields) => {
-                            let pattern_fields = fields
-                                .named
-                                .iter()
-                                .map(|field| field.ident.as_ref().unwrap());
+                if variants.is_empty() {
+                    quote::quote! { match *self {} }
+                } else {
+                    let arms = variants.into_iter().map(|variant| {
+                        let variant_name = variant.ident;
 
-                                let expression_fields = pattern_fields.clone();
-                                let expression_variables = pattern_fields.clone();
+                        match variant.fields {
+                            Fields::Named(fields) => {
+                                let pattern_fields = fields
+                                    .named
+                                    .iter()
+                                    .map(|field| field.ident.as_ref().unwrap());
 
-                            quote::quote! {
-                                Self::#variant_name { #(#pattern_fields,)* } => Self::#variant_name { #(#expression_fields: #clone(#expression_variables),)* }
+                                    let expression_fields = pattern_fields.clone();
+                                    let expression_variables = pattern_fields.clone();
+
+                                quote::quote! {
+                                    Self::#variant_name { #(#pattern_fields,)* } => Self::#variant_name { #(#expression_fields: #clone(#expression_variables),)* }
+                                }
                             }
-                        }
-                        Fields::Unnamed(fields) => {
-                            let fields = (0..fields.unnamed.len())
-                                .map(|i| quote::format_ident!("field_{}", i))
-                                .collect::<Vec<_>>();
+                            Fields::Unnamed(fields) => {
+                                let fields = (0..fields.unnamed.len())
+                                    .map(|i| quote::format_ident!("field_{}", i))
+                                    .collect::<Vec<_>>();
 
-                            quote::quote! {
-                                Self::#variant_name(#(#fields,)*) => Self::#variant_name(#(#clone(#fields),)*)
+                                quote::quote! {
+                                    Self::#variant_name(#(#fields,)*) => Self::#variant_name(#(#clone(#fields),)*)
+                                }
                             }
+                            Fields::Unit => quote::quote! {
+                                Self::#variant_name => Self::#variant_name
+                            },
                         }
-                        Fields::Unit => quote::quote! {
-                            Self::#variant_name => Self::#variant_name
-                        },
-                    }
-                });
+                    });
 
-                quote::quote! {
-                    match self {
-                        #(#variants,)*
+                    quote::quote! {
+                        match self {
+                            #(#arms,)*
+                        }
                     }
                 }
             }
@@ -158,6 +164,38 @@ mod tests {
                     impl ::core::clone::Clone for Foo {
                         fn clone(&self) -> Self {
                             Self
+                        }
+                    }
+                },
+            ),
+            // Empty enum type.
+            (
+                quote::quote! {
+                    enum Foo {}
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl ::core::clone::Clone for Foo {
+                        fn clone(&self) -> Self {
+                            match *self {}
+                        }
+                    }
+                },
+            ),
+            // Single enum type.
+            (
+                quote::quote! {
+                    enum Foo {
+                        X,
+                    }
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl ::core::clone::Clone for Foo {
+                        fn clone(&self) -> Self {
+                            match self {
+                                Self::X => Self::X,
+                            }
                         }
                     }
                 },

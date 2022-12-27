@@ -58,6 +58,28 @@ mod tests {
                     impl ::core::cmp::Eq for Foo {}
                 },
             ),
+            // Empty enum type.
+            (
+                quote::quote! {
+                    enum Foo {}
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl ::core::cmp::Eq for Foo {}
+                },
+            ),
+            // Single enum type.
+            (
+                quote::quote! {
+                    enum Foo {
+                        X,
+                    }
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl ::core::cmp::Eq for Foo {}
+                },
+            ),
             // Enum type.
             (
                 quote::quote! {

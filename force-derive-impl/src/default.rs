@@ -164,6 +164,23 @@ mod tests {
                     }
                 },
             ),
+            // Single enum type.
+            (
+                quote::quote! {
+                    enum Foo {
+                        #[default]
+                        X,
+                    }
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl ::core::default::Default for Foo {
+                        fn default() -> Self {
+                            Self::X
+                        }
+                    }
+                },
+            ),
             // Enum type 1.
             (
                 quote::quote! {

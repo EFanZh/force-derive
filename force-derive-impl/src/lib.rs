@@ -1,46 +1,55 @@
 use proc_macro::TokenStream;
 use syn::DeriveInput;
 
-// Clone
-// Copy
-// Debug
-// Default
-// Eq
-// Hash
-// Ord
-// PartialEq
-// PartialOrd
+// TODO:
+//
+// - [x] Clone
+// - [x] Copy
+// - [x] Debug
+// - [x] Default
+// - [x] Eq
+// - [ ] Hash
+// - [ ] Ord
+// - [x] PartialEq
+// - [ ] PartialOrd
+// - Error span.
+// - Variable name conflict.
 
 mod clone;
 mod copy;
 mod debug;
 mod default;
 mod eq;
+mod hash;
 mod marker_trait;
 mod partial_eq;
 mod utilities;
+
+fn parse_derive_input(input: TokenStream) -> Result<DeriveInput, TokenStream> {
+    utilities::parse_derive_input(input.into()).map_err(|error| error.into())
+}
 
 fn derive_with(
     input: TokenStream,
     f: impl FnOnce(DeriveInput) -> proc_macro2::TokenStream,
 ) -> TokenStream {
-    match utilities::parse_derive_input(input.into()) {
+    match parse_derive_input(input) {
         Ok(input) => f(input).into(),
-        Err(error) => error.into(),
+        Err(error) => error,
     }
+}
+
+fn flatten_result(result: syn::Result<proc_macro2::TokenStream>) -> TokenStream {
+    result.unwrap_or_else(syn::Error::into_compile_error).into()
 }
 
 fn try_derive_with(
     input: TokenStream,
     f: impl FnOnce(DeriveInput) -> syn::Result<proc_macro2::TokenStream>,
 ) -> TokenStream {
-    match utilities::parse_derive_input(input.into()) {
-        Ok(input) => match f(input) {
-            Ok(output) => output,
-            Err(error) => error.into_compile_error(),
-        }
-        .into(),
-        Err(error) => error.into(),
+    match parse_derive_input(input) {
+        Ok(input) => flatten_result(f(input)),
+        Err(error) => error,
     }
 }
 
@@ -67,6 +76,11 @@ pub fn derive_default(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Eq)]
 pub fn derive_eq(input: TokenStream) -> TokenStream {
     derive_with(input, eq::derive_eq)
+}
+
+#[proc_macro_derive(Hash)]
+pub fn derive_hash(input: TokenStream) -> TokenStream {
+    try_derive_with(input, hash::derive_hash)
 }
 
 #[proc_macro_derive(PartialEq)]

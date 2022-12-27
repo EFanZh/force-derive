@@ -27,6 +27,14 @@ where
 // Enum.
 
 #[derive(force_derive_impl::Clone, force_derive_impl::Copy)]
+enum EnumCopyEmpty {}
+
+#[derive(force_derive_impl::Clone, force_derive_impl::Copy)]
+enum EnumCopySingle<T> {
+    B(PhantomData<T>),
+}
+
+#[derive(force_derive_impl::Clone, force_derive_impl::Copy)]
 enum EnumCopy1<T> {
     A,
     B(PhantomData<T>),
@@ -49,5 +57,7 @@ static_assertions::assert_impl_all!(UnitCopy1: Copy);
 static_assertions::assert_impl_all!(UnitCopy2: Copy);
 static_assertions::assert_impl_all!(TupleCopy1<NotCopy>: Copy);
 static_assertions::assert_impl_all!(TupleCopy2<NotCopy>: Copy);
+static_assertions::assert_impl_all!(EnumCopyEmpty: Copy);
+static_assertions::assert_impl_all!(EnumCopySingle<NotCopy>: Copy);
 static_assertions::assert_impl_all!(EnumCopy1<NotCopy>: Copy);
 static_assertions::assert_impl_all!(EnumCopy2<NotCopy>: Copy);

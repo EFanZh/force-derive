@@ -58,6 +58,28 @@ mod tests {
                     impl ::core::marker::Copy for Foo {}
                 },
             ),
+            // Empty enum type.
+            (
+                quote::quote! {
+                    enum Foo {}
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl ::core::marker::Copy for Foo {}
+                },
+            ),
+            // Single enum type.
+            (
+                quote::quote! {
+                    enum Foo {
+                        X,
+                    }
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl ::core::marker::Copy for Foo {}
+                },
+            ),
             // Enum type.
             (
                 quote::quote! {
