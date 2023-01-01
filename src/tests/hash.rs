@@ -4,15 +4,45 @@ use std::mem;
 
 struct NotHash;
 
-// Unit.
+#[derive(Default)]
+struct ForceHash<T>(PhantomData<T>);
+
+impl<T> Hash for ForceHash<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write(&[2]);
+        state.write_u8(3);
+        state.write_u16(5);
+        state.write_u32(7);
+        state.write_u64(11);
+        state.write_u128(13);
+        state.write_usize(17);
+        state.write_i8(19);
+        state.write_i16(23);
+        state.write_i32(29);
+        state.write_i64(31);
+        state.write_i128(37);
+        state.write_isize(41);
+    }
+}
+
+// Struct.
 
 #[derive(force_derive_impl::Hash)]
-struct UnitHash1;
+struct StructHash0 {}
 
 #[derive(force_derive_impl::Hash)]
-struct UnitHash2
+struct StructHash1<T> {
+    foo: ForceHash<T>,
+}
+
+#[derive(force_derive_impl::Hash)]
+struct StructHash2<T>
 where
-    u32: Copy;
+    u32: Copy,
+{
+    foo: ForceHash<T>,
+    bar: ForceHash<T>,
+}
 
 // Tuple.
 
@@ -20,54 +50,61 @@ where
 struct TupleHash0();
 
 #[derive(force_derive_impl::Hash)]
-struct TupleHash1<T>(PhantomData<T>);
+struct TupleHash1<T>(ForceHash<T>);
 
 #[derive(force_derive_impl::Hash)]
-struct TupleHash2<T>(PhantomData<T>)
+struct TupleHash2<T>(ForceHash<T>, ForceHash<T>)
 where
-    T: Send + ?Sized;
+    u32: Copy;
+
+// Unit.
+
+#[derive(force_derive_impl::Hash)]
+struct UnitHash;
 
 // Enum.
 
 #[derive(force_derive_impl::Hash)]
-enum EnumHashEmpty {}
-
-#[derive(force_derive_impl::Hash)]
-enum EnumHashSingle<T> {
-    A(PhantomData<T>),
-}
+enum EnumHash0 {}
 
 #[derive(force_derive_impl::Hash)]
 enum EnumHash1<T> {
-    A,
-    B(PhantomData<T>),
-    C { bar: PhantomData<T> },
+    Tuple1(ForceHash<T>),
 }
 
 #[derive(force_derive_impl::Hash)]
-enum EnumHash2<T>
+enum EnumHash<T>
 where
-    T: Send + ?Sized,
+    u32: Copy,
 {
-    A,
-    B(PhantomData<T>),
-    C { bar: PhantomData<T> },
+    Struct0 {},
+    Struct1 {
+        foo: ForceHash<T>,
+    },
+    Struct2 {
+        foo: ForceHash<T>,
+        bar: ForceHash<T>,
+    },
+    Tuple0(),
+    Tuple1(ForceHash<T>),
+    Tuple2(ForceHash<T>, ForceHash<T>),
+    Unit,
 }
 
 // Tests.
 
-static_assertions::assert_impl_all!(UnitHash1: Hash);
-static_assertions::assert_impl_all!(UnitHash2: Hash);
+static_assertions::assert_impl_all!(StructHash0: Hash);
+static_assertions::assert_impl_all!(StructHash1<NotHash>: Hash);
+static_assertions::assert_impl_all!(StructHash2<NotHash>: Hash);
 static_assertions::assert_impl_all!(TupleHash0: Hash);
 static_assertions::assert_impl_all!(TupleHash1<NotHash>: Hash);
 static_assertions::assert_impl_all!(TupleHash2<NotHash>: Hash);
-static_assertions::assert_impl_all!(EnumHashEmpty: Hash);
-static_assertions::assert_impl_all!(EnumHashSingle<NotHash>: Hash);
+static_assertions::assert_impl_all!(UnitHash: Hash);
+static_assertions::assert_impl_all!(EnumHash0: Hash);
 static_assertions::assert_impl_all!(EnumHash1<NotHash>: Hash);
-static_assertions::assert_impl_all!(EnumHash2<NotHash>: Hash);
-static_assertions::assert_impl_all!(EnumHash2<NotHash>: Hash);
+static_assertions::assert_impl_all!(EnumHash<NotHash>: Hash);
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Debug, Eq)]
 enum Operation {
     Write(Box<[u8]>),
     WriteU8(u8),
@@ -180,54 +217,117 @@ fn hash_items(values: &[&dyn TestHash]) -> Vec<Operation> {
 
 #[test]
 fn test_hash() {
-    // Unit.
+    let atom = &ForceHash(PhantomData::<NotHash>);
 
-    assert!(hash(&UnitHash1).is_empty());
-    assert!(hash(&UnitHash2).is_empty());
+    // Struct.
+
+    assert_eq!(hash(&StructHash0 {}), []);
+
+    assert_eq!(
+        hash(&StructHash1::<NotHash> {
+            foo: ForceHash(PhantomData)
+        }),
+        hash(atom),
+    );
+
+    assert_eq!(
+        hash(&StructHash2::<NotHash> {
+            foo: ForceHash(PhantomData),
+            bar: ForceHash(PhantomData),
+        }),
+        hash_items(&[atom, atom]),
+    );
 
     // Tuple.
 
-    assert!(hash(&TupleHash0()).is_empty());
-    assert!(hash(&TupleHash1::<NotHash>(PhantomData)) == hash(&PhantomData::<NotHash>));
-    assert!(hash(&TupleHash2::<NotHash>(PhantomData)) == hash(&PhantomData::<NotHash>));
+    assert_eq!(hash(&TupleHash0()), []);
+
+    assert_eq!(
+        hash(&TupleHash1::<NotHash>(ForceHash(PhantomData))),
+        hash(atom),
+    );
+
+    assert_eq!(
+        hash(&TupleHash2::<NotHash>(
+            ForceHash(PhantomData),
+            ForceHash(PhantomData)
+        )),
+        hash_items(&[atom, atom]),
+    );
+
+    // Unit.
+
+    assert_eq!(hash(&UnitHash), []);
 
     // Enum.
 
-    assert!(hash(&EnumHashSingle::<NotHash>::A(PhantomData)) == hash(&PhantomData::<NotHash>));
-
-    assert!(hash(&EnumHash1::<NotHash>::A) == hash(&mem::discriminant(&EnumHash1::<NotHash>::A)));
-
-    assert!(
-        hash(&EnumHash1::<NotHash>::B(PhantomData))
-            == hash_items(&[
-                &mem::discriminant(&EnumHash1::<NotHash>::B(PhantomData)),
-                &PhantomData::<NotHash>
-            ])
+    assert_eq!(
+        hash(&EnumHash1::<NotHash>::Tuple1(ForceHash(PhantomData))),
+        hash(atom),
     );
 
-    assert!(
-        hash(&EnumHash1::<NotHash>::C { bar: PhantomData })
-            == hash_items(&[
-                &mem::discriminant(&EnumHash1::<NotHash>::C { bar: PhantomData }),
-                &PhantomData::<NotHash>
-            ])
+    assert_eq!(
+        hash(&EnumHash::<NotHash>::Struct0 {}),
+        hash(&mem::discriminant(&EnumHash::<NotHash>::Struct0 {})),
     );
 
-    assert!(hash(&EnumHash2::<NotHash>::A) == hash(&mem::discriminant(&EnumHash2::<NotHash>::A)));
-
-    assert!(
-        hash(&EnumHash2::<NotHash>::B(PhantomData))
-            == hash_items(&[
-                &mem::discriminant(&EnumHash2::<NotHash>::B(PhantomData)),
-                &PhantomData::<NotHash>
-            ])
+    assert_eq!(
+        hash(&EnumHash::<NotHash>::Struct1 {
+            foo: ForceHash(PhantomData)
+        }),
+        hash_items(&[
+            &mem::discriminant(&EnumHash::<NotHash>::Struct1 {
+                foo: ForceHash(PhantomData)
+            }),
+            atom,
+        ]),
     );
 
-    assert!(
-        hash(&EnumHash2::<NotHash>::C { bar: PhantomData })
-            == hash_items(&[
-                &mem::discriminant(&EnumHash2::<NotHash>::C { bar: PhantomData }),
-                &PhantomData::<NotHash>
-            ])
+    assert_eq!(
+        hash(&EnumHash::<NotHash>::Struct2 {
+            foo: ForceHash(PhantomData),
+            bar: ForceHash(PhantomData),
+        }),
+        hash_items(&[
+            &mem::discriminant(&EnumHash::<NotHash>::Struct2 {
+                foo: ForceHash(PhantomData),
+                bar: ForceHash(PhantomData),
+            }),
+            atom,
+            atom,
+        ]),
+    );
+
+    assert_eq!(
+        hash(&EnumHash::<NotHash>::Tuple0()),
+        hash(&mem::discriminant(&EnumHash::<NotHash>::Tuple0())),
+    );
+
+    assert_eq!(
+        hash(&EnumHash::<NotHash>::Tuple1(ForceHash(PhantomData))),
+        hash_items(&[
+            &mem::discriminant(&EnumHash::<NotHash>::Tuple1(ForceHash(PhantomData))),
+            atom,
+        ]),
+    );
+
+    assert_eq!(
+        hash(&EnumHash::<NotHash>::Tuple2(
+            ForceHash(PhantomData),
+            ForceHash(PhantomData),
+        )),
+        hash_items(&[
+            &mem::discriminant(&EnumHash::<NotHash>::Tuple2(
+                ForceHash(PhantomData),
+                ForceHash(PhantomData),
+            )),
+            atom,
+            atom,
+        ]),
+    );
+
+    assert_eq!(
+        hash(&EnumHash::<NotHash>::Unit),
+        hash(&mem::discriminant(&EnumHash::<NotHash>::Unit)),
     );
 }

@@ -4,60 +4,81 @@ use std::marker::PhantomData;
 
 struct NotCopy;
 
-// Unit.
+// Struct.
 
 #[derive(force_derive_impl::Clone, force_derive_impl::Copy)]
-struct UnitCopy1;
+struct StructCopy0 {}
 
 #[derive(force_derive_impl::Clone, force_derive_impl::Copy)]
-struct UnitCopy2
+struct StructCopy1<T> {
+    foo: PhantomData<T>,
+}
+
+#[derive(force_derive_impl::Clone, force_derive_impl::Copy)]
+struct StructCopy2<T>
 where
-    u32: Copy;
+    u32: Copy,
+{
+    foo: PhantomData<T>,
+    bar: PhantomData<T>,
+}
 
 // Tuple.
+
+#[derive(force_derive_impl::Clone, force_derive_impl::Copy)]
+struct TupleCopy0();
 
 #[derive(force_derive_impl::Clone, force_derive_impl::Copy)]
 struct TupleCopy1<T>(PhantomData<T>);
 
 #[derive(force_derive_impl::Clone, force_derive_impl::Copy)]
-struct TupleCopy2<T>(PhantomData<T>)
+struct TupleCopy2<T>(PhantomData<T>, PhantomData<T>)
 where
-    T: Send + ?Sized;
+    u32: Copy;
+
+// Unit.
+
+#[derive(force_derive_impl::Clone, force_derive_impl::Copy)]
+struct UnitCopy;
 
 // Enum.
 
 #[derive(force_derive_impl::Clone, force_derive_impl::Copy)]
-enum EnumCopyEmpty {}
-
-#[derive(force_derive_impl::Clone, force_derive_impl::Copy)]
-enum EnumCopySingle<T> {
-    B(PhantomData<T>),
-}
+enum EnumCopy0 {}
 
 #[derive(force_derive_impl::Clone, force_derive_impl::Copy)]
 enum EnumCopy1<T> {
-    A,
-    B(PhantomData<T>),
-    C { bar: PhantomData<T> },
+    Tuple1(PhantomData<T>),
 }
 
 #[derive(force_derive_impl::Clone, force_derive_impl::Copy)]
-enum EnumCopy2<T>
+enum EnumCopy<T>
 where
-    T: Send + ?Sized,
+    u32: Copy,
 {
-    A,
-    B(PhantomData<T>),
-    C { bar: PhantomData<T> },
+    Struct0 {},
+    Struct1 {
+        foo: PhantomData<T>,
+    },
+    Struct2 {
+        foo: PhantomData<T>,
+        bar: PhantomData<T>,
+    },
+    Tuple0(),
+    Tuple1(PhantomData<T>),
+    Tuple2(PhantomData<T>, PhantomData<T>),
+    Unit,
 }
 
 // Tests.
 
-static_assertions::assert_impl_all!(UnitCopy1: Copy);
-static_assertions::assert_impl_all!(UnitCopy2: Copy);
+static_assertions::assert_impl_all!(StructCopy0: Copy);
+static_assertions::assert_impl_all!(StructCopy1<NotCopy>: Copy);
+static_assertions::assert_impl_all!(StructCopy2<NotCopy>: Copy);
+static_assertions::assert_impl_all!(TupleCopy0: Copy);
 static_assertions::assert_impl_all!(TupleCopy1<NotCopy>: Copy);
 static_assertions::assert_impl_all!(TupleCopy2<NotCopy>: Copy);
-static_assertions::assert_impl_all!(EnumCopyEmpty: Copy);
-static_assertions::assert_impl_all!(EnumCopySingle<NotCopy>: Copy);
+static_assertions::assert_impl_all!(UnitCopy: Copy);
+static_assertions::assert_impl_all!(EnumCopy0: Copy);
 static_assertions::assert_impl_all!(EnumCopy1<NotCopy>: Copy);
-static_assertions::assert_impl_all!(EnumCopy2<NotCopy>: Copy);
+static_assertions::assert_impl_all!(EnumCopy<NotCopy>: Copy);

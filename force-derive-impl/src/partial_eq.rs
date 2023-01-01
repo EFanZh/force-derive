@@ -362,11 +362,11 @@ mod tests {
                     #[automatically_derived]
                     impl ::core::cmp::PartialEq for Foo {
                         fn eq(&self, other: &Self) -> bool {
-                            match (self, other) {}
+                            match *self {}
                         }
 
                         fn ne(&self, other: &Self) -> bool {
-                            match (self, other) {}
+                            match *self {}
                         }
                     }
                 },
