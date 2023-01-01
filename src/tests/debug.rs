@@ -56,17 +56,27 @@ where
     u32: Copy,
 {
     Struct0 {},
-    Struct1 {
-        foo: PhantomData<T>,
-    },
-    Struct2 {
-        foo: PhantomData<T>,
-        bar: PhantomData<T>,
-    },
+    Struct1 { foo: PhantomData<T> },
+    Struct2 { foo: PhantomData<T>, bar: PhantomData<T> },
     Tuple0(),
     Tuple1(PhantomData<T>),
     Tuple2(PhantomData<T>, PhantomData<T>),
     Unit,
+}
+
+// Special identifiers.
+
+#[allow(dead_code)]
+#[derive(force_derive_impl::Debug)]
+struct SpecialIdentifierStructDebug {
+    f: u32,
+}
+
+#[allow(dead_code)]
+#[allow(non_camel_case_types)]
+#[derive(force_derive_impl::Debug)]
+enum SpecialIdentifierEnumDebug {
+    Struct { f: u32 },
 }
 
 // Tests.
@@ -161,4 +171,11 @@ fn test_debug() {
     );
 
     assert_eq!(debug(&EnumDebug::<NotDebug>::Unit), "Unit");
+
+    assert_eq!(
+        debug(&SpecialIdentifierStructDebug { f: 2 }),
+        "SpecialIdentifierStructDebug { f: 2 }",
+    );
+
+    assert_eq!(debug(&SpecialIdentifierEnumDebug::Struct { f: 2 }), "Struct { f: 2 }");
 }

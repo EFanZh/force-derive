@@ -1,3 +1,4 @@
+use crate::utilities;
 use proc_macro2::TokenStream;
 use syn::{Data, DeriveInput, Fields, Generics, Ident, Index};
 
@@ -64,26 +65,22 @@ pub fn derive_debug(input: DeriveInput) -> syn::Result<TokenStream> {
 
                         match variant.fields {
                             Fields::Named(fields) => {
-                                let pattern_fields = fields
-                                    .named
-                                    .iter()
-                                    .map(|field| field.ident.as_ref().unwrap());
+                                let pattern_fields = fields.named.iter().map(|field| field.ident.as_ref().unwrap());
+
+                                let field_variables =
+                                    utilities::get_field_identifiers(fields.named.len()).collect::<Vec<_>>();
 
                                 let field_names = pattern_fields.clone().map(Ident::to_string);
 
-                                let expression_fields = pattern_fields.clone();
-
                                 quote::quote! {
-                                    Self::#variant_name { #(#pattern_fields,)* } =>
+                                    Self::#variant_name { #(#pattern_fields: #field_variables,)* } =>
                                         f.debug_struct(#variant_name_string)
-                                        #(.field(#field_names, #expression_fields))*
+                                        #(.field(#field_names, #field_variables))*
                                         .finish()
                                 }
                             }
                             Fields::Unnamed(fields) => {
-                                let fields = (0..fields.unnamed.len())
-                                    .map(|i| quote::format_ident!("field_{}", i))
-                                    .collect::<Vec<_>>();
+                                let fields = utilities::get_field_identifiers(fields.unnamed.len()).collect::<Vec<_>>();
 
                                 quote::quote! {
                                     Self::#variant_name(#(#fields,)*) =>
@@ -105,9 +102,7 @@ pub fn derive_debug(input: DeriveInput) -> syn::Result<TokenStream> {
                     }
                 }
             }
-            Data::Union(_) => {
-                return Err(syn::Error::new(span, "Cannot derive `Debug` on a `union`."))
-            }
+            Data::Union(_) => return Err(syn::Error::new(span, "Cannot derive `Debug` on a `union`.")),
         },
     ))
 }
@@ -251,7 +246,7 @@ mod tests {
                             match self {
                                 Self::X => f.write_str("X"),
                                 Self::Y(field_0, field_1,) => f.debug_tuple("Y").field(field_0).field(field_1).finish(),
-                                Self::Z { a, b, } => f.debug_struct("Z").field("a", a).field("b", b).finish(),
+                                Self::Z { a: field_0, b: field_1, } => f.debug_struct("Z").field("a", field_0).field("b", field_1).finish(),
                             }
                         }
                     }

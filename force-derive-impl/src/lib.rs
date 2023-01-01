@@ -14,6 +14,7 @@ use syn::DeriveInput;
 // - [ ] PartialOrd
 // - Error span.
 // - Variable name conflict.
+// - `?Sized` field.
 
 mod clone;
 mod copy;
@@ -29,10 +30,7 @@ fn parse_derive_input(input: TokenStream) -> Result<DeriveInput, TokenStream> {
     utilities::parse_derive_input(input.into()).map_err(|error| error.into())
 }
 
-fn derive_with(
-    input: TokenStream,
-    f: impl FnOnce(DeriveInput) -> proc_macro2::TokenStream,
-) -> TokenStream {
+fn derive_with(input: TokenStream, f: impl FnOnce(DeriveInput) -> proc_macro2::TokenStream) -> TokenStream {
     match parse_derive_input(input) {
         Ok(input) => f(input).into(),
         Err(error) => error,

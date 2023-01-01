@@ -78,17 +78,24 @@ where
     u32: Copy,
 {
     Struct0 {},
-    Struct1 {
-        foo: ForceHash<T>,
-    },
-    Struct2 {
-        foo: ForceHash<T>,
-        bar: ForceHash<T>,
-    },
+    Struct1 { foo: ForceHash<T> },
+    Struct2 { foo: ForceHash<T>, bar: ForceHash<T> },
     Tuple0(),
     Tuple1(ForceHash<T>),
     Tuple2(ForceHash<T>, ForceHash<T>),
     Unit,
+}
+
+// Special identifiers.
+
+#[derive(force_derive_impl::Hash)]
+struct SpecialIdentifierStructHash {
+    state: u32,
+}
+
+#[derive(force_derive_impl::Hash)]
+enum SpecialIdentifierEnumHash {
+    Struct { state: u32 },
 }
 
 // Tests.
@@ -242,16 +249,10 @@ fn test_hash() {
 
     assert_eq!(hash(&TupleHash0()), []);
 
-    assert_eq!(
-        hash(&TupleHash1::<NotHash>(ForceHash(PhantomData))),
-        hash(atom),
-    );
+    assert_eq!(hash(&TupleHash1::<NotHash>(ForceHash(PhantomData))), hash(atom));
 
     assert_eq!(
-        hash(&TupleHash2::<NotHash>(
-            ForceHash(PhantomData),
-            ForceHash(PhantomData)
-        )),
+        hash(&TupleHash2::<NotHash>(ForceHash(PhantomData), ForceHash(PhantomData))),
         hash_items(&[atom, atom]),
     );
 
@@ -261,10 +262,7 @@ fn test_hash() {
 
     // Enum.
 
-    assert_eq!(
-        hash(&EnumHash1::<NotHash>::Tuple1(ForceHash(PhantomData))),
-        hash(atom),
-    );
+    assert_eq!(hash(&EnumHash1::<NotHash>::Tuple1(ForceHash(PhantomData))), hash(atom));
 
     assert_eq!(
         hash(&EnumHash::<NotHash>::Struct0 {}),
@@ -330,4 +328,9 @@ fn test_hash() {
         hash(&EnumHash::<NotHash>::Unit),
         hash(&mem::discriminant(&EnumHash::<NotHash>::Unit)),
     );
+
+    // Special identifiers.
+
+    assert_eq!(hash(&SpecialIdentifierStructHash { state: 2 }), hash(&2_u32));
+    assert_eq!(hash(&SpecialIdentifierEnumHash::Struct { state: 2 }), hash(&2_u32));
 }

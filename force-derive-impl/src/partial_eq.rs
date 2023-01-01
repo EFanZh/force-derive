@@ -10,10 +10,7 @@ fn generate_variant(variant: &Variant) -> (TokenStream, TokenStream) {
 
     match &variant.fields {
         Fields::Named(fields) => {
-            let eq_pattern_self_fields = fields
-                .named
-                .iter()
-                .map(|field| field.ident.as_ref().unwrap());
+            let eq_pattern_self_fields = fields.named.iter().map(|field| field.ident.as_ref().unwrap());
 
             let self_variables = eq_pattern_self_fields
                 .clone()
@@ -101,10 +98,7 @@ fn generate_function_bodies(span: Span, data: Data) -> syn::Result<(TokenStream,
                 if fields.named.is_empty() {
                     unit_type()
                 } else {
-                    let eq_self_fields = fields
-                        .named
-                        .iter()
-                        .map(|field| field.ident.as_ref().unwrap());
+                    let eq_self_fields = fields.named.iter().map(|field| field.ident.as_ref().unwrap());
 
                     let eq_other_fields = eq_self_fields.clone();
                     let ne_self_fields = eq_self_fields.clone();
@@ -171,27 +165,14 @@ fn generate_function_bodies(span: Span, data: Data) -> syn::Result<(TokenStream,
                     )
                 }
             } else {
-                (
-                    quote::quote! { match *self {} },
-                    quote::quote! { match *self {} },
-                )
+                (quote::quote! { match *self {} }, quote::quote! { match *self {} })
             }
         }
-        Data::Union(_) => {
-            return Err(syn::Error::new(
-                span,
-                "Cannot derive `PartialEq` on a `union`.",
-            ))
-        }
+        Data::Union(_) => return Err(syn::Error::new(span, "Cannot derive `PartialEq` on a `union`.")),
     })
 }
 
-fn derive_with(
-    ty: Ident,
-    generics: Generics,
-    eq_body: TokenStream,
-    ne_body: TokenStream,
-) -> TokenStream {
+fn derive_with(ty: Ident, generics: Generics, eq_body: TokenStream, ne_body: TokenStream) -> TokenStream {
     let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
 
     quote::quote! {

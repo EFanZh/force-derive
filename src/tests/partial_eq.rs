@@ -83,12 +83,21 @@ where
     (PartialEq::eq(lhs, rhs), PartialEq::ne(lhs, rhs))
 }
 
+// Special identifiers.
+
+#[derive(force_derive_impl::PartialEq)]
+struct SpecialIdentifierStructPartialEq {
+    other: u32,
+}
+
+#[derive(force_derive_impl::PartialEq)]
+enum SpecialIdentifierEnumPartialEq {
+    Struct { other: u32 },
+}
+
 #[test]
 fn test_partial_eq_struct() {
-    assert_eq!(
-        partial_eq(&StructPartialEq0 {}, &StructPartialEq0 {}),
-        (true, false),
-    );
+    assert_eq!(partial_eq(&StructPartialEq0 {}, &StructPartialEq0 {}), (true, false));
 
     assert_eq!(
         partial_eq(
@@ -129,10 +138,7 @@ fn test_partial_eq_struct() {
 
 #[test]
 fn test_partial_eq_tuple() {
-    assert_eq!(
-        partial_eq(&TuplePartialEq0 {}, &TuplePartialEq0 {}),
-        (true, false),
-    );
+    assert_eq!(partial_eq(&TuplePartialEq0 {}, &TuplePartialEq0 {}), (true, false));
 
     assert_eq!(
         partial_eq(
@@ -205,4 +211,19 @@ fn test_partial_eq_enum() {
             assert_eq!(partial_eq(&lhs(), &rhs()), (i == j, i != j));
         }
     }
+}
+
+#[test]
+fn test_partial_eq_special_identifiers() {
+    let struct_2 = || SpecialIdentifierStructPartialEq { other: 2 };
+    let struct_3 = || SpecialIdentifierStructPartialEq { other: 3 };
+
+    assert_eq!(partial_eq(&struct_2(), &struct_2()), (true, false));
+    assert_eq!(partial_eq(&struct_2(), &struct_3()), (false, true));
+
+    let enum_2 = || SpecialIdentifierEnumPartialEq::Struct { other: 2 };
+    let enum_3 = || SpecialIdentifierEnumPartialEq::Struct { other: 3 };
+
+    assert_eq!(partial_eq(&enum_2(), &enum_2()), (true, false));
+    assert_eq!(partial_eq(&enum_2(), &enum_3()), (false, true));
 }

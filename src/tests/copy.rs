@@ -57,13 +57,8 @@ where
     u32: Copy,
 {
     Struct0 {},
-    Struct1 {
-        foo: PhantomData<T>,
-    },
-    Struct2 {
-        foo: PhantomData<T>,
-        bar: PhantomData<T>,
-    },
+    Struct1 { foo: PhantomData<T> },
+    Struct2 { foo: PhantomData<T>, bar: PhantomData<T> },
     Tuple0(),
     Tuple1(PhantomData<T>),
     Tuple2(PhantomData<T>, PhantomData<T>),

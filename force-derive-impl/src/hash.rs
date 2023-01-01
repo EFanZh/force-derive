@@ -1,3 +1,4 @@
+use crate::utilities;
 use proc_macro2::TokenStream;
 use syn::{Data, DeriveInput, Fields, Generics, Ident, Index, Variant};
 
@@ -21,14 +22,8 @@ fn hash_variant(hash: &TokenStream, variant: &Variant) -> TokenStream {
 
     match &variant.fields {
         Fields::Named(fields) => {
-            let field_names = fields
-                .named
-                .iter()
-                .map(|field| field.ident.as_ref().unwrap());
-
-            let field_variables = (0..fields.named.len())
-                .map(|i| quote::format_ident!("field_{}", i))
-                .collect::<Vec<_>>();
+            let field_names = fields.named.iter().map(|field| field.ident.as_ref().unwrap());
+            let field_variables = utilities::get_field_identifiers(fields.named.len()).collect::<Vec<_>>();
 
             quote::quote! {
                 Self::#variant_name { #(#field_names: #field_variables,)* } => {
@@ -37,9 +32,7 @@ fn hash_variant(hash: &TokenStream, variant: &Variant) -> TokenStream {
             }
         }
         Fields::Unnamed(fields) => {
-            let fields = (0..fields.unnamed.len())
-                .map(|i| quote::format_ident!("field_{}", i))
-                .collect::<Vec<_>>();
+            let fields = utilities::get_field_identifiers(fields.unnamed.len()).collect::<Vec<_>>();
 
             quote::quote! {
                 Self::#variant_name(#(#fields,)*) => {
@@ -99,9 +92,7 @@ pub fn derive_hash(input: DeriveInput) -> syn::Result<TokenStream> {
                     quote::quote!(match *self {})
                 }
             }
-            Data::Union(_) => {
-                return Err(syn::Error::new(span, "Cannot derive `Hash` on a `union`."))
-            }
+            Data::Union(_) => return Err(syn::Error::new(span, "Cannot derive `Hash` on a `union`.")),
         },
     ))
 }
