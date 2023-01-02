@@ -172,6 +172,8 @@ fn test_debug() {
 
     assert_eq!(debug(&EnumDebug::<NotDebug>::Unit), "Unit");
 
+    // Special identifiers.
+
     assert_eq!(
         debug(&SpecialIdentifierStructDebug { f: 2 }),
         "SpecialIdentifierStructDebug { f: 2 }",

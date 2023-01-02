@@ -23,7 +23,11 @@ fn hash_variant(hash: &TokenStream, variant: &Variant) -> TokenStream {
     match &variant.fields {
         Fields::Named(fields) => {
             let field_names = fields.named.iter().map(|field| field.ident.as_ref().unwrap());
-            let field_variables = utilities::get_field_identifiers(fields.named.len()).collect::<Vec<_>>();
+
+            let field_variables = field_names
+                .clone()
+                .map(|field| quote::format_ident!("field_{}", field))
+                .collect::<Vec<_>>();
 
             quote::quote! {
                 Self::#variant_name { #(#field_names: #field_variables,)* } => {
@@ -104,60 +108,97 @@ mod tests {
     #[test]
     fn test_derive_hash() {
         let test_cases = [
-            // Named struct type.
+            // Empty struct.
             (
                 quote::quote! {
-                    struct Foo {
-                        field_1: Type1,
-                        field_2: Type2
-                    }
+                    struct Foo {}
                 },
                 quote::quote! {
                     #[automatically_derived]
                     impl ::core::hash::Hash for Foo {
-                        fn hash<H: ::core::hash::Hasher>(&self, state: &mut H) {
-                            ::core::hash::Hash::hash(&self.field_1, state);
-                            ::core::hash::Hash::hash(&self.field_2, state);
-                        }
+                        fn hash<H: ::core::hash::Hasher>(&self, state: &mut H) {}
                     }
                 },
             ),
-            // Generic named struct type.
+            // Struct with a single field.
             (
                 quote::quote! {
-                    struct Foo<T, U>
-                    where
-                        T: Trait1,
-                        U: Trait2,
-                    {
-                        field_1: Type1,
-                        field_2: Type2<T>,
-                        field_3: Type3<U>,
+                    struct Foo<T> {
+                        foo: ForceHash<T>,
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl<T, U> ::core::hash::Hash for Foo<T, U>
-                    where
-                        T: Trait1,
-                        U: Trait2,
-                    {
+                    impl<T> ::core::hash::Hash for Foo<T> {
                         fn hash<H: ::core::hash::Hasher>(&self, state: &mut H) {
-                            ::core::hash::Hash::hash(&self.field_1, state);
-                            ::core::hash::Hash::hash(&self.field_2, state);
-                            ::core::hash::Hash::hash(&self.field_3, state);
+                            ::core::hash::Hash::hash(&self.foo, state);
                         }
                     }
                 },
             ),
-            // Tuple struct type.
+            // Struct with two fields and generic constraints.
             (
                 quote::quote! {
-                    struct Foo(X, Y);
+                    struct Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        foo: ForceHash<T>,
+                        bar: ForceHash<T>,
+                    }
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::hash::Hash for Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        fn hash<H: ::core::hash::Hasher>(&self, state: &mut H) {
+                            ::core::hash::Hash::hash(&self.foo, state);
+                            ::core::hash::Hash::hash(&self.bar, state);
+                        }
+                    }
+                },
+            ),
+            // Empty tuple.
+            (
+                quote::quote! {
+                    struct Foo();
                 },
                 quote::quote! {
                     #[automatically_derived]
                     impl ::core::hash::Hash for Foo {
+                        fn hash<H: ::core::hash::Hasher>(&self, state: &mut H) {}
+                    }
+                },
+            ),
+            // Tuple with a single field.
+            (
+                quote::quote! {
+                    struct Foo<T>(ForceHash<T>);
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::hash::Hash for Foo<T> {
+                        fn hash<H: ::core::hash::Hasher>(&self, state: &mut H) {
+                            ::core::hash::Hash::hash(&self.0, state);
+                        }
+                    }
+                },
+            ),
+            // Tuple with two fields and generic constraints.
+            (
+                quote::quote! {
+                    struct Foo<T>(ForceHash<T>, ForceHash<T>)
+                    where
+                        u32: Copy;
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::hash::Hash for Foo<T>
+                    where
+                        u32: Copy
+                    {
                         fn hash<H: ::core::hash::Hasher>(&self, state: &mut H) {
                             ::core::hash::Hash::hash(&self.0, state);
                             ::core::hash::Hash::hash(&self.1, state);
@@ -165,7 +206,7 @@ mod tests {
                     }
                 },
             ),
-            // Unit struct type.
+            // Unit.
             (
                 quote::quote! {
                     struct Foo;
@@ -177,7 +218,7 @@ mod tests {
                     }
                 },
             ),
-            // Empty enum type.
+            // Empty enum.
             (
                 quote::quote! {
                     enum Foo {}
@@ -191,55 +232,69 @@ mod tests {
                     }
                 },
             ),
-            // Single enum type.
+            // Enum with a single variant.
             (
                 quote::quote! {
-                    enum Foo {
-                        X,
+                    enum Foo<T> {
+                        Tuple1(ForceHash<T>),
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl ::core::hash::Hash for Foo {
+                    impl<T> ::core::hash::Hash for Foo<T> {
                         fn hash<H: ::core::hash::Hasher>(&self, state: &mut H) {
                             match self {
-                                Self::X => {},
+                                Self::Tuple1(field_0,) => {
+                                    ::core::hash::Hash::hash(field_0, state);
+                                },
                             }
                         }
                     }
                 },
             ),
-            // Enum type.
+            // Enum.
             (
                 quote::quote! {
-                    enum Foo {
-                        X,
-                        Y(A, B),
-                        Z {
-                            a: A,
-                            b: B,
-                        }
+                    enum Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        Struct0 {},
+                        Struct1 { foo: ForceHash<T> },
+                        Struct2 { foo: ForceHash<T>, bar: ForceHash<T> },
+                        Tuple0(),
+                        Tuple1(ForceHash<T>),
+                        Tuple2(ForceHash<T>, ForceHash<T>),
+                        Unit,
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl ::core::hash::Hash for Foo {
+                    impl<T> ::core::hash::Hash for Foo<T>
+                    where
+                        u32: Copy,
+                    {
                         fn hash<H: ::core::hash::Hasher>(&self, state: &mut H) {
                             ::core::hash::Hash::hash(&::core::mem::discriminant(self), state);
 
                             match self {
-                                Self::X => {},
-                                Self::Y(field_0, field_1,) => {
+                                Self::Struct0 {} => {},
+                                Self::Struct1 { foo: field_foo, } => {
+                                    ::core::hash::Hash::hash(field_foo, state);
+                                },
+                                Self::Struct2 { foo: field_foo, bar: field_bar, } => {
+                                    ::core::hash::Hash::hash(field_foo, state);
+                                    ::core::hash::Hash::hash(field_bar, state);
+                                },
+                                Self::Tuple0() => {},
+                                Self::Tuple1(field_0,) => {
+                                    ::core::hash::Hash::hash(field_0, state);
+                                },
+                                Self::Tuple2(field_0, field_1,) => {
                                     ::core::hash::Hash::hash(field_0, state);
                                     ::core::hash::Hash::hash(field_1, state);
                                 },
-                                Self::Z {
-                                    a: field_0,
-                                    b: field_1,
-                                } => {
-                                    ::core::hash::Hash::hash(field_0, state);
-                                    ::core::hash::Hash::hash(field_1, state);
-                                },
+                                Self::Unit => {},
                             }
                         }
                     }

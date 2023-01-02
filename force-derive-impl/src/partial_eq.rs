@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn test_derive_partial_eq() {
         let test_cases = [
-            // Empty named struct type.
+            // Empty struct.
             (
                 quote::quote! {
                     struct Foo {}
@@ -220,64 +220,56 @@ mod tests {
                     }
                 },
             ),
-            // Named struct type.
+            // Struct with a single field.
             (
                 quote::quote! {
-                    struct Foo {
-                        field_1: Type1,
-                        field_2: Type2
+                    struct Foo<T> {
+                        foo: PhantomData<T>,
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl ::core::cmp::PartialEq for Foo {
+                    impl<T> ::core::cmp::PartialEq for Foo<T> {
                         fn eq(&self, other: &Self) -> bool {
-                            ::core::cmp::PartialEq::eq(&self.field_1, &other.field_1) &&
-                            ::core::cmp::PartialEq::eq(&self.field_2, &other.field_2)
+                            ::core::cmp::PartialEq::eq(&self.foo, &other.foo)
                         }
 
                         fn ne(&self, other: &Self) -> bool {
-                            ::core::cmp::PartialEq::ne(&self.field_1, &other.field_1) ||
-                            ::core::cmp::PartialEq::ne(&self.field_2, &other.field_2)
+                            ::core::cmp::PartialEq::ne(&self.foo, &other.foo)
                         }
                     }
                 },
             ),
-            // Generic named struct type.
+            // Struct with two fields and generic constraints.
             (
                 quote::quote! {
-                    struct Foo<T, U>
+                    struct Foo<T>
                     where
-                        T: Trait1,
-                        U: Trait2,
+                        u32: Copy,
                     {
-                        field_1: Type1,
-                        field_2: Type2<T>,
-                        field_3: Type3<U>,
+                        foo: PhantomData<T>,
+                        bar: PhantomData<T>,
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl<T, U> ::core::cmp::PartialEq for Foo<T, U>
+                    impl<T> ::core::cmp::PartialEq for Foo<T>
                     where
-                        T: Trait1,
-                        U: Trait2,
+                        u32: Copy,
                     {
                         fn eq(&self, other: &Self) -> bool {
-                            ::core::cmp::PartialEq::eq(&self.field_1, &other.field_1) &&
-                            ::core::cmp::PartialEq::eq(&self.field_2, &other.field_2) &&
-                            ::core::cmp::PartialEq::eq(&self.field_3, &other.field_3)
+                            ::core::cmp::PartialEq::eq(&self.foo, &other.foo) &&
+                            ::core::cmp::PartialEq::eq(&self.bar, &other.bar)
                         }
 
                         fn ne(&self, other: &Self) -> bool {
-                            ::core::cmp::PartialEq::ne(&self.field_1, &other.field_1) ||
-                            ::core::cmp::PartialEq::ne(&self.field_2, &other.field_2) ||
-                            ::core::cmp::PartialEq::ne(&self.field_3, &other.field_3)
+                            ::core::cmp::PartialEq::ne(&self.foo, &other.foo) ||
+                            ::core::cmp::PartialEq::ne(&self.bar, &other.bar)
                         }
                     }
                 },
             ),
-            // Empty tuple struct type.
+            // Empty tuple.
             (
                 quote::quote! {
                     struct Foo();
@@ -295,14 +287,37 @@ mod tests {
                     }
                 },
             ),
-            // Tuple struct type.
+            // Tuple with a single field.
             (
                 quote::quote! {
-                    struct Foo(X, Y);
+                    struct Foo<T>(PhantomData<T>);
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl ::core::cmp::PartialEq for Foo {
+                    impl<T> ::core::cmp::PartialEq for Foo<T> {
+                        fn eq(&self, other: &Self) -> bool {
+                            ::core::cmp::PartialEq::eq(&self.0, &other.0)
+                        }
+
+                        fn ne(&self, other: &Self) -> bool {
+                            ::core::cmp::PartialEq::ne(&self.0, &other.0)
+                        }
+                    }
+                },
+            ),
+            // Tuple with two fields and generic constraints.
+            (
+                quote::quote! {
+                    struct Foo<T>(PhantomData<T>, PhantomData<T>)
+                    where
+                        u32: Copy;
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::cmp::PartialEq for Foo<T>
+                    where
+                        u32: Copy
+                    {
                         fn eq(&self, other: &Self) -> bool {
                             ::core::cmp::PartialEq::eq(&self.0, &other.0) &&
                             ::core::cmp::PartialEq::eq(&self.1, &other.1)
@@ -315,7 +330,7 @@ mod tests {
                     }
                 },
             ),
-            // Unit struct type.
+            // Unit.
             (
                 quote::quote! {
                     struct Foo;
@@ -333,7 +348,7 @@ mod tests {
                     }
                 },
             ),
-            // Empty enum type.
+            // Empty enum.
             (
                 quote::quote! {
                     enum Foo {}
@@ -351,73 +366,92 @@ mod tests {
                     }
                 },
             ),
-            // Single enum type.
+            // Enum with a single variant.
             (
                 quote::quote! {
-                    enum Foo {
-                        X(Bar)
+                    enum Foo<T> {
+                        Tuple1(PhantomData<T>),
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl ::core::cmp::PartialEq for Foo {
+                    impl<T> ::core::cmp::PartialEq for Foo<T> {
                         fn eq(&self, other: &Self) -> bool {
                             match (self, other) {
-                                (Self::X(self_0,), Self::X(other_0,),) => ::core::cmp::PartialEq::eq(self_0, other_0),
+                                (Self::Tuple1(self_0,), Self::Tuple1(other_0,),) =>
+                                    ::core::cmp::PartialEq::eq(self_0, other_0),
                             }
                         }
 
                         fn ne(&self, other: &Self) -> bool {
                             match (self, other) {
-                                (Self::X(self_0,), Self::X(other_0,),) => ::core::cmp::PartialEq::ne(self_0, other_0),
+                                (Self::Tuple1(self_0,), Self::Tuple1(other_0,),) =>
+                                    ::core::cmp::PartialEq::ne(self_0, other_0),
                             }
                         }
                     }
                 },
             ),
-            // Enum type.
+            // Enum.
             (
                 quote::quote! {
-                    enum Foo {
-                        X,
-                        Y(A, B),
-                        Z {
-                            a: A,
-                            b: B,
-                        },
-                        A(),
-                        B {},
+                    enum Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        Struct0 {},
+                        Struct1 { foo: PhantomData<T> },
+                        Struct2 { foo: PhantomData<T>, bar: PhantomData<T> },
+                        Tuple0(),
+                        Tuple1(PhantomData<T>),
+                        Tuple2(PhantomData<T>, PhantomData<T>),
+                        Unit,
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl ::core::cmp::PartialEq for Foo {
+                    impl<T> ::core::cmp::PartialEq for Foo<T>
+                    where
+                        u32: Copy,
+                    {
                         fn eq(&self, other: &Self) -> bool {
                             match (self, other) {
-                                (Self::X, Self::X,) => true,
-                                (Self::Y(self_0, self_1,), Self::Y(other_0, other_1,),) =>
+                                (Self::Struct0 {}, Self::Struct0 {},) => true,
+                                (Self::Struct1 { foo: self_foo, }, Self::Struct1 { foo: other_foo, },) =>
+                                    ::core::cmp::PartialEq::eq(self_foo, other_foo),
+                                (
+                                    Self::Struct2 { foo: self_foo, bar: self_bar, },
+                                    Self::Struct2 { foo: other_foo, bar: other_bar, },
+                                ) => ::core::cmp::PartialEq::eq(self_foo, other_foo) &&
+                                    ::core::cmp::PartialEq::eq(self_bar, other_bar),
+                                (Self::Tuple0(), Self::Tuple0(),) => true,
+                                (Self::Tuple1(self_0,), Self::Tuple1(other_0,),) =>
+                                    ::core::cmp::PartialEq::eq(self_0, other_0),
+                                (Self::Tuple2(self_0, self_1,), Self::Tuple2(other_0, other_1,),) =>
                                     ::core::cmp::PartialEq::eq(self_0, other_0) &&
                                     ::core::cmp::PartialEq::eq(self_1, other_1),
-                                (Self::Z { a: self_a, b: self_b, }, Self::Z { a: other_a, b: other_b, },) =>
-                                    ::core::cmp::PartialEq::eq(self_a, other_a) &&
-                                    ::core::cmp::PartialEq::eq(self_b, other_b),
-                                (Self::A(), Self::A(),) => true,
-                                (Self::B {}, Self::B {},) => true,
+                                (Self::Unit, Self::Unit,) => true,
                                 _ => false,
                             }
                         }
 
                         fn ne(&self, other: &Self) -> bool {
                             match (self, other) {
-                                (Self::X, Self::X,) => false,
-                                (Self::Y(self_0, self_1,), Self::Y(other_0, other_1,),) =>
+                                (Self::Struct0 {}, Self::Struct0 {},) => false,
+                                (Self::Struct1 { foo: self_foo, }, Self::Struct1 { foo: other_foo, },) =>
+                                    ::core::cmp::PartialEq::ne(self_foo, other_foo),
+                                (
+                                    Self::Struct2 { foo: self_foo, bar: self_bar, },
+                                    Self::Struct2 { foo: other_foo, bar: other_bar, },
+                                ) => ::core::cmp::PartialEq::ne(self_foo, other_foo) ||
+                                    ::core::cmp::PartialEq::ne(self_bar, other_bar),
+                                (Self::Tuple0(), Self::Tuple0(),) => false,
+                                (Self::Tuple1(self_0,), Self::Tuple1(other_0,),) =>
+                                    ::core::cmp::PartialEq::ne(self_0, other_0),
+                                (Self::Tuple2(self_0, self_1,), Self::Tuple2(other_0, other_1,),) =>
                                     ::core::cmp::PartialEq::ne(self_0, other_0) ||
                                     ::core::cmp::PartialEq::ne(self_1, other_1),
-                                (Self::Z { a: self_a, b: self_b, }, Self::Z { a: other_a, b: other_b, },) =>
-                                    ::core::cmp::PartialEq::ne(self_a, other_a) ||
-                                    ::core::cmp::PartialEq::ne(self_b, other_b),
-                                (Self::A(), Self::A(),) => false,
-                                (Self::B {}, Self::B {},) => false,
+                                (Self::Unit, Self::Unit,) => false,
                                 _ => true,
                             }
                         }

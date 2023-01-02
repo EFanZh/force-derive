@@ -65,6 +65,14 @@ where
     Unit,
 }
 
+// Union.
+
+#[allow(dead_code)]
+#[derive(force_derive_impl::Clone, force_derive_impl::Copy)]
+union Union {
+    foo: u32,
+}
+
 // Tests.
 
 static_assertions::assert_impl_all!(StructCopy0: Copy);
@@ -77,3 +85,4 @@ static_assertions::assert_impl_all!(UnitCopy: Copy);
 static_assertions::assert_impl_all!(EnumCopy0: Copy);
 static_assertions::assert_impl_all!(EnumCopy1<NotCopy>: Copy);
 static_assertions::assert_impl_all!(EnumCopy<NotCopy>: Copy);
+static_assertions::assert_impl_all!(Union: Copy);

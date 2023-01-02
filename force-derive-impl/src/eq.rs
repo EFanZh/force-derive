@@ -12,53 +12,95 @@ mod tests {
     #[test]
     fn test_derive_eq() {
         let test_cases = [
-            // Struct type.
+            // Empty struct.
             (
                 quote::quote! {
-                    struct Foo {
-                        field_1: Type1,
-                        field_2: Type2
-                    }
+                    struct Foo {}
                 },
                 quote::quote! {
                     #[automatically_derived]
                     impl ::core::cmp::Eq for Foo {}
                 },
             ),
-            // Generic struct type.
+            // Struct with a single field.
             (
                 quote::quote! {
-                    struct Foo<T, U>
-                    where
-                        T: Trait1,
-                        U: Trait2,
-                    {
-                        field_1: Type1,
-                        field_2: Type2<T>,
-                        field_3: Type3<U>,
+                    struct Foo<T> {
+                        foo: PhantomData<T>,
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl<T, U> ::core::cmp::Eq for Foo<T, U>
+                    impl<T> ::core::cmp::Eq for Foo<T> {}
+                },
+            ),
+            // Struct with two fields and generic constraints.
+            (
+                quote::quote! {
+                    struct Foo<T>
                     where
-                        T: Trait1,
-                        U: Trait2,
+                        u32: Copy,
+                    {
+                        foo: PhantomData<T>,
+                        bar: PhantomData<T>,
+                    }
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::cmp::Eq for Foo<T>
+                    where
+                        u32: Copy,
                     {
                     }
                 },
             ),
-            // Tuple struct type.
+            // Empty tuple.
             (
                 quote::quote! {
-                    struct Foo(X, Y);
+                    struct Foo();
                 },
                 quote::quote! {
                     #[automatically_derived]
                     impl ::core::cmp::Eq for Foo {}
                 },
             ),
-            // Empty enum type.
+            // Tuple with a single field.
+            (
+                quote::quote! {
+                    struct Foo<T>(PhantomData<T>);
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::cmp::Eq for Foo<T> {}
+                },
+            ),
+            // Tuple with two fields and generic constraints.
+            (
+                quote::quote! {
+                    struct Foo<T>(PhantomData<T>, PhantomData<T>)
+                    where
+                        u32: Copy;
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::cmp::Eq for Foo<T>
+                    where
+                        u32: Copy
+                    {
+                    }
+                },
+            ),
+            // Unit.
+            (
+                quote::quote! {
+                    struct Foo;
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl ::core::cmp::Eq for Foo {}
+                },
+            ),
+            // Empty enum.
             (
                 quote::quote! {
                     enum Foo {}
@@ -68,33 +110,41 @@ mod tests {
                     impl ::core::cmp::Eq for Foo {}
                 },
             ),
-            // Single enum type.
+            // Enum with a single variant.
             (
                 quote::quote! {
-                    enum Foo {
-                        X,
+                    enum Foo<T> {
+                        Tuple1(PhantomData<T>),
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl ::core::cmp::Eq for Foo {}
+                    impl<T> ::core::cmp::Eq for Foo<T> {}
                 },
             ),
-            // Enum type.
+            // Enum.
             (
                 quote::quote! {
-                    enum Foo {
-                        X,
-                        Y(A, B),
-                        Z {
-                            a: A,
-                            b: B,
-                        }
+                    enum Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        Struct0 {},
+                        Struct1 { foo: PhantomData<T> },
+                        Struct2 { foo: PhantomData<T>, bar: PhantomData<T> },
+                        Tuple0(),
+                        Tuple1(PhantomData<T>),
+                        Tuple2(PhantomData<T>, PhantomData<T>),
+                        Unit,
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl ::core::cmp::Eq for Foo {}
+                    impl<T> ::core::cmp::Eq for Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                    }
                 },
             ),
         ];

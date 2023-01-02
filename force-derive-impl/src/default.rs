@@ -89,68 +89,115 @@ mod tests {
     #[test]
     fn test_derive_default() {
         let test_cases = [
-            // Named struct type.
+            // Empty struct.
             (
                 quote::quote! {
-                    struct Foo {
-                        field_1: Type1,
-                        field_2: Type2
-                    }
+                    struct Foo {}
                 },
                 quote::quote! {
                     #[automatically_derived]
                     impl ::core::default::Default for Foo {
                         fn default() -> Self {
-                            Self { field_1: ::core::default::Default::default(), field_2: ::core::default::Default::default(), }
+                            Self {}
                         }
                     }
                 },
             ),
-            // Generic named struct type.
+            // Struct with a single field.
             (
                 quote::quote! {
-                    struct Foo<T, U>
-                    where
-                        T: Trait1,
-                        U: Trait2,
-                    {
-                        field_1: Type1,
-                        field_2: Type2<T>,
-                        field_3: Type3<U>,
+                    struct Foo<T> {
+                        foo: Vec<T>,
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl<T, U> ::core::default::Default for Foo<T, U>
-                    where
-                        T: Trait1,
-                        U: Trait2,
-                    {
+                    impl<T> ::core::default::Default for Foo<T> {
                         fn default() -> Self {
                             Self {
-                                field_1: ::core::default::Default::default(),
-                                field_2: ::core::default::Default::default(),
-                                field_3: ::core::default::Default::default(),
+                                foo: ::core::default::Default::default(),
                             }
                         }
                     }
                 },
             ),
-            // Tuple struct type.
+            // Struct with two fields and generic constraints.
             (
                 quote::quote! {
-                    struct Foo(X, Y);
+                    struct Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        foo: Vec<T>,
+                        bar: PhantomData<T>,
+                    }
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::default::Default for Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        fn default() -> Self {
+                            Self {
+                                foo: ::core::default::Default::default(),
+                                bar: ::core::default::Default::default(),
+                            }
+                        }
+                    }
+                },
+            ),
+            // Empty tuple.
+            (
+                quote::quote! {
+                    struct Foo();
                 },
                 quote::quote! {
                     #[automatically_derived]
                     impl ::core::default::Default for Foo {
                         fn default() -> Self {
-                            Self(::core::default::Default::default(), ::core::default::Default::default(),)
+                            Self()
                         }
                     }
                 },
             ),
-            // Unit struct type.
+            // Tuple with a single field.
+            (
+                quote::quote! {
+                    struct Foo<T>(Vec<T>);
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::default::Default for Foo<T> {
+                        fn default() -> Self {
+                            Self(::core::default::Default::default(),)
+                        }
+                    }
+                },
+            ),
+            // Tuple with two fields and generic constraints.
+            (
+                quote::quote! {
+                    struct Foo<T>(Vec<T>, PhantomData<T>)
+                    where
+                        u32: Copy;
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::default::Default for Foo<T>
+                    where
+                        u32: Copy
+                    {
+                        fn default() -> Self {
+                            Self(
+                                ::core::default::Default::default(),
+                                ::core::default::Default::default(),
+                            )
+                        }
+                    }
+                },
+            ),
+            // Unit.
             (
                 quote::quote! {
                     struct Foo;
@@ -164,85 +211,230 @@ mod tests {
                     }
                 },
             ),
-            // Single enum type.
+            // Enum with a single variant.
             (
                 quote::quote! {
-                    enum Foo {
+                    enum Foo<T> {
                         #[default]
-                        X,
+                        Tuple1(Vec<T>),
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl ::core::default::Default for Foo {
+                    impl<T> ::core::default::Default for Foo<T> {
                         fn default() -> Self {
-                            Self::X
+                            Self::Tuple1(::core::default::Default::default(),)
                         }
                     }
                 },
             ),
-            // Enum type 1.
+            // Enum with empty struct as default.
             (
                 quote::quote! {
-                    enum Foo {
+                    enum Foo<T>
+                    where
+                        u32: Copy,
+                    {
                         #[default]
-                        X,
-                        Y(A, B),
-                        Z {
-                            a: A,
-                            b: B,
-                        }
+                        Struct0 {},
+                        Struct1 { foo: Vec<T> },
+                        Struct2 { foo: Vec<T>, bar: PhantomData<T> },
+                        Tuple0(),
+                        Tuple1(Vec<T>),
+                        Tuple2(Vec<T>, PhantomData<T>),
+                        Unit,
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl ::core::default::Default for Foo {
+                    impl<T> ::core::default::Default for Foo<T>
+                    where
+                        u32: Copy,
+                    {
                         fn default() -> Self {
-                            Self::X
+                            Self::Struct0 {}
                         }
                     }
                 },
             ),
-            // Enum type 2.
+            // Enum with struct with a single field as default.
             (
                 quote::quote! {
-                    enum Foo {
-                        X,
+                    enum Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        Struct0 {},
                         #[default]
-                        Y(A, B),
-                        Z {
-                            a: A,
-                            b: B,
-                        }
+                        Struct1 { foo: Vec<T> },
+                        Struct2 { foo: Vec<T>, bar: PhantomData<T> },
+                        Tuple0(),
+                        Tuple1(Vec<T>),
+                        Tuple2(Vec<T>, PhantomData<T>),
+                        Unit,
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl ::core::default::Default for Foo {
+                    impl<T> ::core::default::Default for Foo<T>
+                    where
+                        u32: Copy,
+                    {
                         fn default() -> Self {
-                            Self::Y(::core::default::Default::default(), ::core::default::Default::default(),)
+                            Self::Struct1 {
+                                foo: ::core::default::Default::default(),
+                            }
                         }
                     }
                 },
             ),
-            // Enum type 3.
+            // Enum with struct with two fields as default.
             (
                 quote::quote! {
-                    enum Foo {
-                        X,
-                        Y(A, B),
+                    enum Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        Struct0 {},
+                        Struct1 { foo: Vec<T> },
                         #[default]
-                        Z {
-                            a: A,
-                            b: B,
-                        }
+                        Struct2 { foo: Vec<T>, bar: PhantomData<T> },
+                        Tuple0(),
+                        Tuple1(Vec<T>),
+                        Tuple2(Vec<T>, PhantomData<T>),
+                        Unit,
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl ::core::default::Default for Foo {
+                    impl<T> ::core::default::Default for Foo<T>
+                    where
+                        u32: Copy,
+                    {
                         fn default() -> Self {
-                            Self::Z { a: ::core::default::Default::default(), b: ::core::default::Default::default(), }
+                            Self::Struct2 {
+                                foo: ::core::default::Default::default(),
+                                bar: ::core::default::Default::default(),
+                            }
+                        }
+                    }
+                },
+            ),
+            // Enum with empty tuple as default.
+            (
+                quote::quote! {
+                    enum Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        Struct0 {},
+                        Struct1 { foo: Vec<T> },
+                        Struct2 { foo: Vec<T>, bar: PhantomData<T> },
+                        #[default]
+                        Tuple0(),
+                        Tuple1(Vec<T>),
+                        Tuple2(Vec<T>, PhantomData<T>),
+                        Unit,
+                    }
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::default::Default for Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        fn default() -> Self {
+                            Self::Tuple0()
+                        }
+                    }
+                },
+            ),
+            // Enum with struct with a single field as default.
+            (
+                quote::quote! {
+                    enum Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        Struct0 {},
+                        Struct1 { foo: Vec<T> },
+                        Struct2 { foo: Vec<T>, bar: PhantomData<T> },
+                        Tuple0(),
+                        #[default]
+                        Tuple1(Vec<T>),
+                        Tuple2(Vec<T>, PhantomData<T>),
+                        Unit,
+                    }
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::default::Default for Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        fn default() -> Self {
+                            Self::Tuple1(::core::default::Default::default(),)
+                        }
+                    }
+                },
+            ),
+            // Enum with struct with two fields as default.
+            (
+                quote::quote! {
+                    enum Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        Struct0 {},
+                        Struct1 { foo: Vec<T> },
+                        Struct2 { foo: Vec<T>, bar: PhantomData<T> },
+                        Tuple0(),
+                        Tuple1(Vec<T>),
+                        #[default]
+                        Tuple2(Vec<T>, PhantomData<T>),
+                        Unit,
+                    }
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::default::Default for Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        fn default() -> Self {
+                            Self::Tuple2(
+                                ::core::default::Default::default(),
+                                ::core::default::Default::default(),
+                            )
+                        }
+                    }
+                },
+            ),
+            // Enum with empty struct as default.
+            (
+                quote::quote! {
+                    enum Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        Struct0 {},
+                        Struct1 { foo: Vec<T> },
+                        Struct2 { foo: Vec<T>, bar: PhantomData<T> },
+                        Tuple0(),
+                        Tuple1(Vec<T>),
+                        Tuple2(Vec<T>, PhantomData<T>),
+                        #[default]
+                        Unit,
+                    }
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::default::Default for Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        fn default() -> Self {
+                            Self::Unit
                         }
                     }
                 },
@@ -260,7 +452,7 @@ mod tests {
     }
 
     #[test]
-    fn test_derive_default_missing_default_attribute() {
+    fn test_derive_default_wrong_default_attribute() {
         let test_cases = [
             quote::quote! {
                 enum Foo {}

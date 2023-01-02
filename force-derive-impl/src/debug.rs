@@ -17,6 +17,10 @@ fn derive_with(ty: Ident, generics: Generics, body: TokenStream) -> TokenStream 
     }
 }
 
+fn write_str(type_name: &str) -> TokenStream {
+    quote::quote!(f.write_str(#type_name))
+}
+
 pub fn derive_debug(input: DeriveInput) -> syn::Result<TokenStream> {
     let span = input.ident.span();
     let ty_string = input.ident.to_string();
@@ -27,31 +31,37 @@ pub fn derive_debug(input: DeriveInput) -> syn::Result<TokenStream> {
         match input.data {
             Data::Struct(data_struct) => match data_struct.fields {
                 Fields::Named(fields) => {
-                    let fields = fields.named.into_iter().map(|field| {
-                        let field = field.ident.unwrap();
-                        let field_str = field.to_string();
+                    if fields.named.is_empty() {
+                        write_str(&ty_string)
+                    } else {
+                        let fields = fields.named.into_iter().map(|field| {
+                            let field = field.ident.unwrap();
+                            let field_str = field.to_string();
 
-                        quote::quote!(#field_str, &self.#field)
-                    });
+                            quote::quote!(#field_str, &self.#field)
+                        });
 
-                    quote::quote! {
-                        f.debug_struct(#ty_string)
-                        #(.field(#fields))*
-                        .finish()
+                        quote::quote! {
+                            f.debug_struct(#ty_string)
+                            #(.field(#fields))*
+                            .finish()
+                        }
                     }
                 }
                 Fields::Unnamed(fields) => {
-                    let fields = (0..fields.unnamed.len()).map(Index::from);
+                    if fields.unnamed.is_empty() {
+                        write_str(&ty_string)
+                    } else {
+                        let fields = (0..fields.unnamed.len()).map(Index::from);
 
-                    quote::quote! {
-                        f.debug_tuple(#ty_string)
-                        #(.field(&self.#fields))*
-                        .finish()
+                        quote::quote! {
+                            f.debug_tuple(#ty_string)
+                            #(.field(&self.#fields))*
+                            .finish()
+                        }
                     }
                 }
-                Fields::Unit => quote::quote! {
-                    f.write_str(#ty_string)
-                },
+                Fields::Unit => write_str(&ty_string),
             },
             Data::Enum(data_enum) => {
                 let variants = data_enum.variants;
@@ -65,33 +75,56 @@ pub fn derive_debug(input: DeriveInput) -> syn::Result<TokenStream> {
 
                         match variant.fields {
                             Fields::Named(fields) => {
-                                let pattern_fields = fields.named.iter().map(|field| field.ident.as_ref().unwrap());
+                                if fields.named.is_empty() {
+                                    let body = write_str(&variant_name_string);
 
-                                let field_variables =
-                                    utilities::get_field_identifiers(fields.named.len()).collect::<Vec<_>>();
+                                    quote::quote! {
+                                        Self::#variant_name {} => #body
+                                    }
+                                } else {
+                                    let pattern_fields = fields.named.iter().map(|field| field.ident.as_ref().unwrap());
 
-                                let field_names = pattern_fields.clone().map(Ident::to_string);
+                                    let field_variables = pattern_fields
+                                        .clone()
+                                        .map(|field| quote::format_ident!("field_{}", field))
+                                        .collect::<Vec<_>>();
 
-                                quote::quote! {
-                                    Self::#variant_name { #(#pattern_fields: #field_variables,)* } =>
-                                        f.debug_struct(#variant_name_string)
-                                        #(.field(#field_names, #field_variables))*
-                                        .finish()
+                                    let field_names = pattern_fields.clone().map(Ident::to_string);
+
+                                    quote::quote! {
+                                        Self::#variant_name { #(#pattern_fields: #field_variables,)* } =>
+                                            f.debug_struct(#variant_name_string)
+                                            #(.field(#field_names, #field_variables))*
+                                            .finish()
+                                    }
                                 }
                             }
                             Fields::Unnamed(fields) => {
-                                let fields = utilities::get_field_identifiers(fields.unnamed.len()).collect::<Vec<_>>();
+                                if fields.unnamed.is_empty() {
+                                    let body = write_str(&variant_name_string);
 
-                                quote::quote! {
-                                    Self::#variant_name(#(#fields,)*) =>
-                                        f.debug_tuple(#variant_name_string)
-                                        #(.field(#fields))*
-                                        .finish()
+                                    quote::quote! {
+                                        Self::#variant_name() => #body
+                                    }
+                                } else {
+                                    let fields =
+                                        utilities::get_field_identifiers(fields.unnamed.len()).collect::<Vec<_>>();
+
+                                    quote::quote! {
+                                        Self::#variant_name(#(#fields,)*) =>
+                                            f.debug_tuple(#variant_name_string)
+                                            #(.field(#fields))*
+                                            .finish()
+                                    }
                                 }
                             }
-                            Fields::Unit => quote::quote! {
-                                Self::#variant_name => f.write_str(#variant_name_string)
-                            },
+                            Fields::Unit => {
+                                let body = write_str(&variant_name_string);
+
+                                quote::quote! {
+                                    Self::#variant_name => #body
+                                }
+                            }
                         }
                     });
 
@@ -114,64 +147,103 @@ mod tests {
     #[test]
     fn test_derive_debug() {
         let test_cases = [
-            // Named struct type.
+            // Empty struct.
             (
                 quote::quote! {
-                    struct Foo {
-                        field_1: Type1,
-                        field_2: Type2
-                    }
+                    struct Foo {}
                 },
                 quote::quote! {
                     #[automatically_derived]
                     impl ::core::fmt::Debug for Foo {
                         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-                            f.debug_struct("Foo")
-                                .field("field_1", &self.field_1)
-                                .field("field_2", &self.field_2)
-                                .finish()
+                            f.write_str("Foo")
                         }
                     }
                 },
             ),
-            // Generic named struct type.
+            // Struct with a single field.
             (
                 quote::quote! {
-                    struct Foo<T, U>
-                    where
-                        T: Trait1,
-                        U: Trait2,
-                    {
-                        field_1: Type1,
-                        field_2: Type2<T>,
-                        field_3: Type3<U>,
+                    struct Foo<T> {
+                        foo: PhantomData<T>,
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl<T, U> ::core::fmt::Debug for Foo<T, U>
+                    impl<T> ::core::fmt::Debug for Foo<T> {
+                        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                            f.debug_struct("Foo").field("foo", &self.foo).finish()
+                        }
+                    }
+                },
+            ),
+            // Struct with two fields and generic constraints.
+            (
+                quote::quote! {
+                    struct Foo<T>
                     where
-                        T: Trait1,
-                        U: Trait2,
+                        u32: Copy,
+                    {
+                        foo: PhantomData<T>,
+                        bar: PhantomData<T>,
+                    }
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::fmt::Debug for Foo<T>
+                    where
+                        u32: Copy,
                     {
                         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                             f.debug_struct("Foo")
-                                .field("field_1", &self.field_1)
-                                .field("field_2", &self.field_2)
-                                .field("field_3", &self.field_3)
+                                .field("foo", &self.foo)
+                                .field("bar", &self.bar)
                                 .finish()
                         }
                     }
                 },
             ),
-            // Tuple struct type.
+            // Empty tuple.
             (
                 quote::quote! {
-                    struct Foo(X, Y);
+                    struct Foo();
                 },
                 quote::quote! {
                     #[automatically_derived]
                     impl ::core::fmt::Debug for Foo {
+                        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                            f.write_str("Foo")
+                        }
+                    }
+                },
+            ),
+            // Tuple with a single field.
+            (
+                quote::quote! {
+                    struct Foo<T>(PhantomData<T>);
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::fmt::Debug for Foo<T> {
+                        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                            f.debug_tuple("Foo").field(&self.0).finish()
+                        }
+                    }
+                },
+            ),
+            // Tuple with two fields and generic constraints.
+            (
+                quote::quote! {
+                    struct Foo<T>(PhantomData<T>, PhantomData<T>)
+                    where
+                        u32: Copy;
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::fmt::Debug for Foo<T>
+                    where
+                        u32: Copy
+                    {
                         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                             f.debug_tuple("Foo")
                                 .field(&self.0)
@@ -181,7 +253,7 @@ mod tests {
                     }
                 },
             ),
-            // Unit struct type.
+            // Unit.
             (
                 quote::quote! {
                     struct Foo;
@@ -195,7 +267,7 @@ mod tests {
                     }
                 },
             ),
-            // Empty enum type.
+            // Empty enum.
             (
                 quote::quote! {
                     enum Foo {}
@@ -209,44 +281,65 @@ mod tests {
                     }
                 },
             ),
-            // Single enum type.
+            // Enum with a single variant.
             (
                 quote::quote! {
-                    enum Foo {
-                        X,
+                    enum Foo<T> {
+                        Tuple1(PhantomData<T>),
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl ::core::fmt::Debug for Foo {
+                    impl<T> ::core::fmt::Debug for Foo<T> {
                         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                             match self {
-                                Self::X => f.write_str("X"),
+                                Self::Tuple1(field_0,) => f.debug_tuple("Tuple1").field(field_0).finish(),
                             }
                         }
                     }
                 },
             ),
-            // Enum type.
+            // Enum.
             (
                 quote::quote! {
-                    enum Foo {
-                        X,
-                        Y(A, B),
-                        Z {
-                            a: A,
-                            b: B,
-                        }
+                    enum Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        Struct0 {},
+                        Struct1 { foo: PhantomData<T> },
+                        Struct2 { foo: PhantomData<T>, bar: PhantomData<T> },
+                        Tuple0(),
+                        Tuple1(PhantomData<T>),
+                        Tuple2(PhantomData<T>, PhantomData<T>),
+                        Unit,
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl ::core::fmt::Debug for Foo {
+                    impl<T> ::core::fmt::Debug for Foo<T>
+                    where
+                        u32: Copy,
+                    {
                         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                             match self {
-                                Self::X => f.write_str("X"),
-                                Self::Y(field_0, field_1,) => f.debug_tuple("Y").field(field_0).field(field_1).finish(),
-                                Self::Z { a: field_0, b: field_1, } => f.debug_struct("Z").field("a", field_0).field("b", field_1).finish(),
+                                Self::Struct0 {} => f.write_str("Struct0"),
+                                Self::Struct1 { foo: field_foo, } => f.debug_struct("Struct1")
+                                    .field("foo", field_foo)
+                                    .finish(),
+                                Self::Struct2 { foo: field_foo, bar: field_bar, } => f.debug_struct("Struct2")
+                                    .field("foo", field_foo)
+                                    .field("bar", field_bar)
+                                    .finish(),
+                                Self::Tuple0() => f.write_str("Tuple0"),
+                                Self::Tuple1(field_0,) => f.debug_tuple("Tuple1")
+                                    .field(field_0)
+                                    .finish(),
+                                Self::Tuple2(field_0, field_1,) => f.debug_tuple("Tuple2")
+                                    .field(field_0)
+                                    .field(field_1)
+                                    .finish(),
+                                Self::Unit => f.write_str("Unit"),
                             }
                         }
                     }

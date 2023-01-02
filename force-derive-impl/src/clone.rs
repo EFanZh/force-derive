@@ -93,68 +93,115 @@ mod tests {
     #[test]
     fn test_derive_clone() {
         let test_cases = [
-            // Named struct type.
+            // Empty struct.
             (
                 quote::quote! {
-                    struct Foo {
-                        field_1: Type1,
-                        field_2: Type2
-                    }
+                    struct Foo {}
                 },
                 quote::quote! {
                     #[automatically_derived]
                     impl ::core::clone::Clone for Foo {
                         fn clone(&self) -> Self {
-                            Self { field_1: ::core::clone::Clone::clone(&self.field_1), field_2: ::core::clone::Clone::clone(&self.field_2), }
+                            Self {}
                         }
                     }
                 },
             ),
-            // Generic named struct type.
+            // Struct with a single field.
             (
                 quote::quote! {
-                    struct Foo<T, U>
-                    where
-                        T: Trait1,
-                        U: Trait2,
-                    {
-                        field_1: Type1,
-                        field_2: Type2<T>,
-                        field_3: Type3<U>,
+                    struct Foo<T> {
+                        foo: Rc<T>,
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl<T, U> ::core::clone::Clone for Foo<T, U>
-                    where
-                        T: Trait1,
-                        U: Trait2,
-                    {
+                    impl<T> ::core::clone::Clone for Foo<T> {
                         fn clone(&self) -> Self {
                             Self {
-                                field_1: ::core::clone::Clone::clone(&self.field_1),
-                                field_2: ::core::clone::Clone::clone(&self.field_2),
-                                field_3: ::core::clone::Clone::clone(&self.field_3),
+                                foo: ::core::clone::Clone::clone(&self.foo),
                             }
                         }
                     }
                 },
             ),
-            // Tuple struct type.
+            // Struct with two fields and generic constraints.
             (
                 quote::quote! {
-                    struct Foo(X, Y);
+                    struct Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        foo: Rc<T>,
+                        bar: PhantomData<T>,
+                    }
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::clone::Clone for Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        fn clone(&self) -> Self {
+                            Self {
+                                foo: ::core::clone::Clone::clone(&self.foo),
+                                bar: ::core::clone::Clone::clone(&self.bar),
+                            }
+                        }
+                    }
+                },
+            ),
+            // Empty tuple.
+            (
+                quote::quote! {
+                    struct Foo();
                 },
                 quote::quote! {
                     #[automatically_derived]
                     impl ::core::clone::Clone for Foo {
                         fn clone(&self) -> Self {
-                            Self(::core::clone::Clone::clone(&self.0), ::core::clone::Clone::clone(&self.1),)
+                            Self()
                         }
                     }
                 },
             ),
-            // Unit struct type.
+            // Tuple with a single field.
+            (
+                quote::quote! {
+                    struct Foo<T>(Rc<T>);
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::clone::Clone for Foo<T> {
+                        fn clone(&self) -> Self {
+                            Self(::core::clone::Clone::clone(&self.0),)
+                        }
+                    }
+                },
+            ),
+            // Tuple with two fields and generic constraints.
+            (
+                quote::quote! {
+                    struct Foo<T>(Rc<T>, PhantomData<T>)
+                    where
+                        u32: Copy;
+                },
+                quote::quote! {
+                    #[automatically_derived]
+                    impl<T> ::core::clone::Clone for Foo<T>
+                    where
+                        u32: Copy
+                    {
+                        fn clone(&self) -> Self {
+                            Self(
+                                ::core::clone::Clone::clone(&self.0),
+                                ::core::clone::Clone::clone(&self.1),
+                            )
+                        }
+                    }
+                },
+            ),
+            // Unit.
             (
                 quote::quote! {
                     struct Foo;
@@ -168,7 +215,7 @@ mod tests {
                     }
                 },
             ),
-            // Empty enum type.
+            // Empty enum.
             (
                 quote::quote! {
                     enum Foo {}
@@ -182,54 +229,71 @@ mod tests {
                     }
                 },
             ),
-            // Single enum type.
+            // Enum with a single variant.
             (
                 quote::quote! {
-                    enum Foo {
-                        X,
+                    enum Foo<T> {
+                        Tuple1(Rc<T>),
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl ::core::clone::Clone for Foo {
+                    impl<T> ::core::clone::Clone for Foo<T> {
                         fn clone(&self) -> Self {
                             match self {
-                                Self::X => Self::X,
+                                Self::Tuple1(field_0,) => Self::Tuple1(::core::clone::Clone::clone(field_0),),
                             }
                         }
                     }
                 },
             ),
-            // Enum type.
+            // Enum.
             (
                 quote::quote! {
-                    enum Foo {
-                        X,
-                        Y(A, B),
-                        Z {
-                            a: A,
-                            b: B,
-                        }
+                    enum Foo<T>
+                    where
+                        u32: Copy,
+                    {
+                        Struct0 {},
+                        Struct1 { foo: Rc<T> },
+                        Struct2 { foo: Rc<T>, bar: PhantomData<T> },
+                        Tuple0(),
+                        Tuple1(Rc<T>),
+                        Tuple2(Rc<T>, PhantomData<T>),
+                        Unit,
                     }
                 },
                 quote::quote! {
                     #[automatically_derived]
-                    impl ::core::clone::Clone for Foo {
+                    impl<T> ::core::clone::Clone for Foo<T>
+                    where
+                        u32: Copy,
+                    {
                         fn clone(&self) -> Self {
                             match self {
-                                Self::X => Self::X,
-                                Self::Y(field_0, field_1,) => Self::Y(::core::clone::Clone::clone(field_0), ::core::clone::Clone::clone(field_1),),
-                                Self::Z { a, b, } => Self::Z { a: ::core::clone::Clone::clone(a), b: ::core::clone::Clone::clone(b), },
+                                Self::Struct0 {} => Self::Struct0 {},
+                                Self::Struct1 { foo, } => Self::Struct1 { foo: ::core::clone::Clone::clone(foo), },
+                                Self::Struct2 { foo, bar, } => Self::Struct2 {
+                                    foo: ::core::clone::Clone::clone(foo),
+                                    bar: ::core::clone::Clone::clone(bar),
+                                },
+                                Self::Tuple0() => Self::Tuple0(),
+                                Self::Tuple1(field_0,) => Self::Tuple1(::core::clone::Clone::clone(field_0),),
+                                Self::Tuple2(field_0, field_1,) => Self::Tuple2(
+                                    ::core::clone::Clone::clone(field_0),
+                                    ::core::clone::Clone::clone(field_1),
+                                ),
+                                Self::Unit => Self::Unit,
                             }
                         }
                     }
                 },
             ),
-            // Union type.
+            // Union.
             (
                 quote::quote! {
                     union Foo {
-                        x: i32,
+                        foo: u32,
                     }
                 },
                 quote::quote! {

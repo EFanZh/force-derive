@@ -64,6 +64,14 @@ where
     Unit,
 }
 
+// Union.
+
+#[allow(dead_code)]
+#[derive(force_derive_impl::Clone, force_derive_impl::Copy)]
+union Union {
+    foo: u32,
+}
+
 // Tests.
 
 static_assertions::assert_impl_all!(StructClone0: Clone);
@@ -76,6 +84,7 @@ static_assertions::assert_impl_all!(UnitClone: Clone);
 static_assertions::assert_impl_all!(EnumClone0: Clone);
 static_assertions::assert_impl_all!(EnumClone1<NotClone>: Clone);
 static_assertions::assert_impl_all!(EnumClone<NotClone>: Clone);
+static_assertions::assert_impl_all!(Union: Clone);
 
 fn clone<T>(value: &T) -> T
 where
