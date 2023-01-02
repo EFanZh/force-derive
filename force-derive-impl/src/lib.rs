@@ -8,7 +8,7 @@ use syn::DeriveInput;
 // - [x] Debug
 // - [x] Default
 // - [x] Eq
-// - [ ] Hash
+// - [x] Hash
 // - [ ] Ord
 // - [x] PartialEq
 // - [ ] PartialOrd

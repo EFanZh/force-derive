@@ -1,3 +1,4 @@
+use crate::utilities;
 use proc_macro2::TokenStream;
 use syn::{Data, DeriveInput, Fields, Generics, Ident, Index};
 
@@ -60,8 +61,7 @@ pub fn derive_clone(input: DeriveInput) -> TokenStream {
                                 }
                             }
                             Fields::Unnamed(fields) => {
-                                let fields = (0..fields.unnamed.len())
-                                    .map(|i| quote::format_ident!("field_{}", i))
+                                let fields = utilities::get_field_identifiers(fields.unnamed.len())
                                     .collect::<Vec<_>>();
 
                                 quote::quote! {

@@ -99,7 +99,6 @@ fn generate_function_bodies(span: Span, data: Data) -> syn::Result<(TokenStream,
                     unit_type()
                 } else {
                     let eq_self_fields = fields.named.iter().map(|field| field.ident.as_ref().unwrap());
-
                     let eq_other_fields = eq_self_fields.clone();
                     let ne_self_fields = eq_self_fields.clone();
                     let ne_other_fields = eq_self_fields.clone();
