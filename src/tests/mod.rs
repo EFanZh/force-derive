@@ -5,3 +5,4 @@ mod default;
 mod eq;
 mod hash;
 mod partial_eq;
+mod partial_ord;

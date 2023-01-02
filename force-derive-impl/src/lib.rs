@@ -24,6 +24,7 @@ mod eq;
 mod hash;
 mod marker_trait;
 mod partial_eq;
+mod partial_ord;
 mod utilities;
 
 fn parse_derive_input(input: TokenStream) -> Result<DeriveInput, TokenStream> {
@@ -84,4 +85,9 @@ pub fn derive_hash(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(PartialEq)]
 pub fn derive_partial_eq(input: TokenStream) -> TokenStream {
     try_derive_with(input, partial_eq::derive_partial_eq)
+}
+
+#[proc_macro_derive(PartialOrd)]
+pub fn derive_partial_ord(input: TokenStream) -> TokenStream {
+    try_derive_with(input, partial_ord::derive_partial_ord)
 }
